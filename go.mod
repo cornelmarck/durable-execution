@@ -1,6 +1,6 @@
 module github.com/cornelmarck/durable-execution
 
-go 1.25.5
+go 1.25
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
