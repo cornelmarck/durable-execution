@@ -1,0 +1,754 @@
+openapi: 3.1.0
+info:
+  title: Durable Execution API
+  description: |
+    A minimalistic durable task queue with retry, scheduling, event coordination,
+    checkpoints, and workflow tracking.
+
+    Based on: https://github.com/earendil-works/absurd
+
+    ## Core Concepts
+
+    - **Queue**: A named channel that tasks are submitted to and claimed from.
+    - **Task**: The logical unit of work. Persists across retries.
+    - **Run**: A single attempt at executing a task. Workers interact with runs.
+    - **Checkpoint**: Persisted state keyed by (task_id, step_name) that survives across runs.
+    - **Event**: A named signal with a JSON payload for cross-workflow coordination.
+    - **Workflow Run**: A grouping/tracking entity for related tasks.
+
+    ## Claim Semantics
+
+    Claiming atomically locks runs and starts a claim timeout. If the worker doesn't
+    complete or fail the run before the timeout, the run becomes claimable again.
+
+    ## Wait-for-Event Flow
+
+    1. Worker calls wait-for-event on a run.
+    2. If the event already exists, the payload is returned immediately (200).
+    3. If the event doesn't exist, the run is put to sleep (202). The worker should
+       stop processing and go back to claiming new work.
+    4. When the event is emitted, the server wakes sleeping runs and makes them claimable.
+    5. If the timeout elapses first, the run is marked as timed out (408).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+
+paths:
+  /queues:
+    post:
+      operationId: createQueue
+      summary: Create a queue
+      tags: [Queues]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: my_queue
+                cleanup:
+                  $ref: "#/components/schemas/CleanupPolicy"
+      responses:
+        "201":
+          description: Queue created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, created_at]
+                properties:
+                  name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  cleanup:
+                    $ref: "#/components/schemas/CleanupPolicy"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /queues/{queue_name}/tasks:
+    post:
+      operationId: spawnTask
+      summary: Spawn a task
+      description: |
+        Creates a new task in the queue. Automatically creates the queue if it
+        doesn't exist. Returns the task ID, run ID, and workflow run ID.
+      tags: [Tasks]
+      parameters:
+        - $ref: "#/components/parameters/QueueName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpawnTaskRequest"
+      responses:
+        "201":
+          description: Task spawned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task_id, run_id]
+                properties:
+                  task_id:
+                    type: string
+                    example: task_a1b2c3
+                  run_id:
+                    type: string
+                    example: run_x9y8z7
+                  workflow_run_id:
+                    type: string
+                    example: wfr_abc123
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /queues/{queue_name}/tasks/claim:
+    post:
+      operationId: claimTasks
+      summary: Claim tasks for processing
+      description: |
+        Claims up to `qty` tasks from the queue. Claimed tasks are locked for
+        `claim_timeout` seconds. If not completed or failed within that window,
+        they become claimable again. Returns an empty array if no tasks are available.
+      tags: [Tasks]
+      parameters:
+        - $ref: "#/components/parameters/QueueName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qty, claim_timeout]
+              properties:
+                qty:
+                  type: integer
+                  minimum: 1
+                  description: Maximum number of tasks to claim
+                  example: 1
+                claim_timeout:
+                  type: integer
+                  minimum: 1
+                  description: Seconds before the claim expires
+                  example: 60
+      responses:
+        "200":
+          description: Tasks claimed (may be empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClaimedTask"
+
+  /runs/{run_id}/complete:
+    post:
+      operationId: completeRun
+      summary: Mark run as completed
+      tags: [Runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  description: Arbitrary result data
+                  example: {"output": "processed", "records": 42}
+      responses:
+        "200":
+          description: Run completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, status]
+                properties:
+                  run_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [completed]
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /runs/{run_id}/fail:
+    post:
+      operationId: failRun
+      summary: Mark run as failed
+      description: |
+        Marks a run as failed. If retries remain (based on max_attempts and
+        retry_strategy), a new run is scheduled automatically.
+      tags: [Runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [error]
+              properties:
+                error:
+                  type: string
+                  description: Error message describing the failure
+                  example: connection timeout to upstream service
+      responses:
+        "200":
+          description: Run failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, status, attempt]
+                properties:
+                  run_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [failed]
+                  attempt:
+                    type: integer
+                  next_run_id:
+                    type: string
+                    description: Present if a retry was scheduled
+                  next_attempt_at:
+                    type: string
+                    format: date-time
+                    description: Present if a retry was scheduled
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /runs/{run_id}/schedule:
+    post:
+      operationId: scheduleRun
+      summary: Schedule run for future execution
+      description: Schedules a run to become claimable at a future time.
+      tags: [Runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [run_at]
+              properties:
+                run_at:
+                  type: string
+                  format: date-time
+                  description: When the run should become claimable
+                  example: "2026-02-14T10:10:00Z"
+      responses:
+        "200":
+          description: Run scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, scheduled_at]
+                properties:
+                  run_id:
+                    type: string
+                  scheduled_at:
+                    type: string
+                    format: date-time
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /runs/{run_id}/wait-for-event:
+    post:
+      operationId: waitForEvent
+      summary: Sleep until event or timeout
+      description: |
+        Suspends a run until a named event arrives or the timeout elapses.
+        If the event already exists, returns immediately with the payload (200).
+        If not, the run is put to sleep (202) and the worker should stop processing.
+        The server re-queues the run when the event arrives or marks it timed out (408).
+      tags: [Runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_name, timeout_seconds, task_id, step_name]
+              properties:
+                event_name:
+                  type: string
+                  example: data_ready
+                timeout_seconds:
+                  type: integer
+                  minimum: 1
+                  example: 3600
+                task_id:
+                  type: string
+                  example: task_a1b2c3
+                step_name:
+                  type: string
+                  description: Used for idempotency across retries
+                  example: waiting_step
+      responses:
+        "200":
+          description: Event already available
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, payload]
+                properties:
+                  status:
+                    type: string
+                    enum: [resolved]
+                  payload:
+                    description: The event payload
+        "202":
+          description: Run put to sleep until event arrives
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, message]
+                properties:
+                  status:
+                    type: string
+                    enum: [sleeping]
+                  message:
+                    type: string
+        "408":
+          description: Timeout elapsed, event never arrived
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, message]
+                properties:
+                  status:
+                    type: string
+                    enum: [timeout]
+                  message:
+                    type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tasks/{task_id}/checkpoints/{step_name}:
+    put:
+      operationId: setCheckpoint
+      summary: Set checkpoint state
+      description: |
+        Persists state for a task at a named step. Checkpoints survive across
+        runs, allowing a retried task to resume from where it left off.
+      tags: [Checkpoints]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+        - $ref: "#/components/parameters/StepName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state, owner_run]
+              properties:
+                state:
+                  description: Arbitrary state to persist
+                  example: {"current_step": 5, "total_steps": 10}
+                owner_run:
+                  type: string
+                  description: The run setting this checkpoint
+                  example: run_x9y8z7
+                extend_claim_by:
+                  type: integer
+                  minimum: 1
+                  description: Extend the claim timeout by this many seconds
+                  example: 60
+      responses:
+        "200":
+          description: Checkpoint set
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task_id, step_name, updated_at]
+                properties:
+                  task_id:
+                    type: string
+                  step_name:
+                    type: string
+                  updated_at:
+                    type: string
+                    format: date-time
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    get:
+      operationId: getCheckpoint
+      summary: Get checkpoint state
+      tags: [Checkpoints]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+        - $ref: "#/components/parameters/StepName"
+      responses:
+        "200":
+          description: Checkpoint found
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task_id, step_name, state, updated_at]
+                properties:
+                  task_id:
+                    type: string
+                  step_name:
+                    type: string
+                  state:
+                    description: The persisted state
+                  updated_at:
+                    type: string
+                    format: date-time
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /events:
+    post:
+      operationId: emitEvent
+      summary: Emit an event
+      description: |
+        Emits a named event with an optional payload. If any runs are sleeping
+        on this event name, they are woken up and made claimable again.
+      tags: [Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_name]
+              properties:
+                event_name:
+                  type: string
+                  example: data_ready
+                payload:
+                  description: Arbitrary event data
+                  example: {"processed_data": "result", "timestamp": "2025-01-01T00:00:00Z"}
+      responses:
+        "201":
+          description: Event emitted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event_id, event_name, created_at]
+                properties:
+                  event_id:
+                    type: string
+                    example: evt_d4e5f6
+                  event_name:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+
+  /workflow-runs:
+    post:
+      operationId: createWorkflowRun
+      summary: Create a workflow run
+      description: |
+        Creates a tracking entity for a group of related tasks. Link tasks to
+        a workflow run by passing the workflow_run_id when spawning tasks.
+      tags: [Workflow Runs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workflow_name]
+              properties:
+                workflow_name:
+                  type: string
+                  example: data_pipeline
+                workflow_version:
+                  type: string
+                  example: "1.0.0"
+                inputs:
+                  description: Arbitrary workflow inputs
+                  example: {"source": "s3://bucket/data", "target": "warehouse"}
+                created_by:
+                  type: string
+                  example: pipeline_system
+                tags:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  example: {"environment": "production", "priority": "high"}
+      responses:
+        "201":
+          description: Workflow run created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workflow_run_id, workflow_name, status, created_at]
+                properties:
+                  workflow_run_id:
+                    type: string
+                    example: wfr_abc123
+                  workflow_name:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending]
+                  created_at:
+                    type: string
+                    format: date-time
+
+  /workflow-runs/{workflow_run_id}:
+    patch:
+      operationId: updateWorkflowRun
+      summary: Update workflow run status
+      tags: [Workflow Runs]
+      parameters:
+        - name: workflow_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, running, completed, failed, cancelled]
+                result:
+                  description: Arbitrary result data
+                started_at:
+                  type: string
+                  format: date-time
+                completed_at:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Workflow run updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workflow_run_id, status, updated_at]
+                properties:
+                  workflow_run_id:
+                    type: string
+                  status:
+                    type: string
+                  updated_at:
+                    type: string
+                    format: date-time
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    QueueName:
+      name: queue_name
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+    StepName:
+      name: step_name
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    SpawnTaskRequest:
+      type: object
+      required: [task_name]
+      properties:
+        task_name:
+          type: string
+          example: process_data
+        params:
+          description: Arbitrary task parameters
+          example: {"input": "data", "options": {"verbose": true}}
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Arbitrary key-value metadata
+          example: {"priority": "high", "region": "us-east-1"}
+        retry_strategy:
+          $ref: "#/components/schemas/RetryStrategy"
+        max_attempts:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 3
+        start_timeout:
+          type: integer
+          minimum: 0
+          description: |
+            Maximum seconds the task can wait in the queue before being claimed.
+            The task is cancelled if not claimed within this window. 0 means no limit.
+          example: 3600
+        execution_timeout:
+          type: integer
+          minimum: 0
+          description: |
+            Maximum wall-clock seconds from task creation to completion.
+            The task is cancelled if not completed within this window, regardless
+            of retries. This is distinct from claim_timeout, which limits how long
+            a single worker can hold a lease on a run.
+          example: 7200
+        workflow_run_id:
+          type: string
+          description: Link this task to an existing workflow run
+
+    RetryStrategy:
+      type: object
+      required: [kind, base_seconds]
+      properties:
+        kind:
+          type: string
+          enum: [exponential, fixed]
+        base_seconds:
+          type: number
+          minimum: 0
+          description: Base delay between retries in seconds
+          example: 30
+        factor:
+          type: number
+          minimum: 1
+          description: Multiplier per attempt (exponential only)
+          example: 2.0
+        max_seconds:
+          type: number
+          minimum: 0
+          description: Maximum delay between retries in seconds
+          example: 3600
+
+    ClaimedTask:
+      type: object
+      required: [run_id, task_id, attempt, task_name]
+      properties:
+        run_id:
+          type: string
+          example: run_x9y8z7
+        task_id:
+          type: string
+          example: task_a1b2c3
+        attempt:
+          type: integer
+          example: 1
+        task_name:
+          type: string
+          example: process_data
+        params:
+          description: Task parameters as provided when spawned
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        retry_strategy:
+          $ref: "#/components/schemas/RetryStrategy"
+        max_attempts:
+          type: integer
+
+    CleanupPolicy:
+      type: object
+      description: |
+        Configures automatic background cleanup for completed tasks and events.
+        The server periodically deletes records older than the TTL.
+      properties:
+        task_ttl_seconds:
+          type: integer
+          minimum: 0
+          description: Delete completed tasks older than this many seconds. 0 disables task cleanup.
+          default: 259200
+          example: 259200
+        event_ttl_seconds:
+          type: integer
+          minimum: 0
+          description: Delete events older than this many seconds. 0 disables event cleanup.
+          default: 259200
+          example: 259200
+
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "task_name is required"
+            code: VALIDATION_ERROR
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "run not found"
+            code: NOT_FOUND
+    Conflict:
+      description: Conflict with current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "run already completed"
+            code: CONFLICT
