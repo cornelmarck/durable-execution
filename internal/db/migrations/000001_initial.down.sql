@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS checkpoints;
+DROP TABLE IF EXISTS runs;
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS workflow_runs;
+DROP TABLE IF EXISTS queues;
+
+DROP TYPE IF EXISTS run_status;
+DROP TYPE IF EXISTS task_status;
+DROP TYPE IF EXISTS workflow_run_status;
