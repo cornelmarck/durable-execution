@@ -51,7 +51,7 @@ type SpawnTaskResponse struct {
 
 // ClaimTasksRequest is the body for POST /queues/{queue_name}/tasks/claim.
 type ClaimTasksRequest struct {
-	Qty          int32 `json:"qty" validate:"min=1"`
+	Limit        int32 `json:"limit" validate:"min=1"`
 	ClaimTimeout int32 `json:"claim_timeout" validate:"min=1"`
 }
 

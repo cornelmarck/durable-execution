@@ -20,7 +20,7 @@ WHERE id IN (
       AND (r.scheduled_at IS NULL OR r.scheduled_at <= now())
     ORDER BY r.created_at ASC
     FOR UPDATE OF r SKIP LOCKED
-    LIMIT sqlc.arg('qty')
+    LIMIT sqlc.arg('limit')
 )
 RETURNING runs.*,
     (SELECT t.task_name FROM tasks t WHERE t.id = runs.task_id) AS task_name,

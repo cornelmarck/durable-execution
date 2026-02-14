@@ -114,7 +114,7 @@ paths:
       operationId: claimTasks
       summary: Claim tasks for processing
       description: |
-        Claims up to `qty` tasks from the queue. Claimed tasks are locked for
+        Claims up to `limit` tasks from the queue. Claimed tasks are locked for
         `claim_timeout` seconds. If not completed or failed within that window,
         they become claimable again. Returns an empty array if no tasks are available.
       tags: [Tasks]
@@ -126,9 +126,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [qty, claim_timeout]
+              required: [limit, claim_timeout]
               properties:
-                qty:
+                limit:
                   type: integer
                   minimum: 1
                   description: Maximum number of tasks to claim

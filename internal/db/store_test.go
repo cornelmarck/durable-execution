@@ -268,7 +268,7 @@ func TestRuns(t *testing.T) {
 		claimed, err := s.ClaimRuns(ctx, dbgen.ClaimRunsParams{
 			ClaimTimeoutSeconds: 60,
 			QueueID:             q.ID,
-			Qty:                 10,
+			Limit:                 10,
 		})
 		require.NoError(t, err)
 		require.Len(t, claimed, 1)
@@ -294,7 +294,7 @@ func TestRuns(t *testing.T) {
 		claimed, err := s.ClaimRuns(ctx, dbgen.ClaimRunsParams{
 			ClaimTimeoutSeconds: 60,
 			QueueID:             q.ID,
-			Qty:                 10,
+			Limit:                 10,
 		})
 		require.NoError(t, err)
 		assert.Empty(t, claimed)
@@ -311,7 +311,7 @@ func TestRuns(t *testing.T) {
 		claimed, err := s.ClaimRuns(ctx, dbgen.ClaimRunsParams{
 			ClaimTimeoutSeconds: 1,
 			QueueID:             q.ID,
-			Qty:                 1,
+			Limit:                 1,
 		})
 		require.NoError(t, err)
 		require.Len(t, claimed, 1)
@@ -327,7 +327,7 @@ func TestRuns(t *testing.T) {
 		reclaimed, err := s.ClaimRuns(ctx, dbgen.ClaimRunsParams{
 			ClaimTimeoutSeconds: 60,
 			QueueID:             q.ID,
-			Qty:                 10,
+			Limit:                 10,
 		})
 		require.NoError(t, err)
 		require.Len(t, reclaimed, 1)
@@ -542,7 +542,7 @@ func TestCheckpoints(t *testing.T) {
 		_, err := s.ClaimRuns(ctx, dbgen.ClaimRunsParams{
 			ClaimTimeoutSeconds: 10,
 			QueueID:             q.ID,
-			Qty:                 1,
+			Limit:                 1,
 		})
 		require.NoError(t, err)
 
