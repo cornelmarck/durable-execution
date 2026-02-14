@@ -41,7 +41,7 @@ RETURNING runs.id, runs.task_id, runs.attempt, runs.status, runs.result, runs.er
 type ClaimRunsParams struct {
 	ClaimTimeoutSeconds int32       `json:"claim_timeout_seconds"`
 	QueueID             pgtype.UUID `json:"queue_id"`
-	Num                 int32       `json:"num"`
+	Limit               int32       `json:"limit"`
 }
 
 type ClaimRunsRow struct {
@@ -67,7 +67,7 @@ type ClaimRunsRow struct {
 }
 
 func (q *Queries) ClaimRuns(ctx context.Context, arg ClaimRunsParams) ([]ClaimRunsRow, error) {
-	rows, err := q.db.Query(ctx, claimRuns, arg.ClaimTimeoutSeconds, arg.QueueID, arg.Num)
+	rows, err := q.db.Query(ctx, claimRuns, arg.ClaimTimeoutSeconds, arg.QueueID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
