@@ -38,7 +38,7 @@ type CompleteRunResponse struct {
 
 // FailRunRequest is the body for POST /runs/{run_id}/fail.
 type FailRunRequest struct {
-	Error string `json:"error"`
+	Error string `json:"error" validate:"required"`
 }
 
 // FailRunResponse is the response for POST /runs/{run_id}/fail.
@@ -52,7 +52,7 @@ type FailRunResponse struct {
 
 // ScheduleRunRequest is the body for POST /runs/{run_id}/schedule.
 type ScheduleRunRequest struct {
-	RunAt time.Time `json:"run_at"`
+	RunAt time.Time `json:"run_at" validate:"required"`
 }
 
 // ScheduleRunResponse is the response for POST /runs/{run_id}/schedule.
@@ -63,10 +63,10 @@ type ScheduleRunResponse struct {
 
 // WaitForEventRequest is the body for POST /runs/{run_id}/wait-for-event.
 type WaitForEventRequest struct {
-	EventName      string `json:"event_name"`
-	TimeoutSeconds int32  `json:"timeout_seconds"`
-	TaskID         string `json:"task_id"`
-	StepName       string `json:"step_name"`
+	EventName      string `json:"event_name" validate:"required"`
+	TimeoutSeconds int32  `json:"timeout_seconds" validate:"min=1"`
+	TaskID         string `json:"task_id" validate:"required"`
+	StepName       string `json:"step_name" validate:"required"`
 }
 
 // WaitForEventResponse covers all three outcomes (200 resolved, 202 sleeping, 408 timeout).

@@ -2,9 +2,17 @@ package apiv1
 
 import "encoding/json"
 
+// RetryStrategyKind identifies the retry back-off algorithm.
+type RetryStrategyKind string
+
+const (
+	RetryFixed       RetryStrategyKind = "fixed"
+	RetryExponential RetryStrategyKind = "exponential"
+)
+
 // RetryStrategy configures the delay between retries.
 type RetryStrategy struct {
-	Kind        string   `json:"kind"`
+	Kind        RetryStrategyKind `json:"kind"`
 	BaseSeconds float64  `json:"base_seconds"`
 	Factor      *float64 `json:"factor,omitempty"`
 	MaxSeconds  *float64 `json:"max_seconds,omitempty"`
@@ -24,7 +32,7 @@ type ClaimedTask struct {
 
 // SpawnTaskRequest is the body for POST /queues/{queue_name}/tasks.
 type SpawnTaskRequest struct {
-	TaskName         string            `json:"task_name"`
+	TaskName         string            `json:"task_name" validate:"required"`
 	Params           json.RawMessage   `json:"params,omitempty"`
 	Headers          map[string]string `json:"headers,omitempty"`
 	RetryStrategy    *RetryStrategy    `json:"retry_strategy,omitempty"`
@@ -43,8 +51,8 @@ type SpawnTaskResponse struct {
 
 // ClaimTasksRequest is the body for POST /queues/{queue_name}/tasks/claim.
 type ClaimTasksRequest struct {
-	Qty          int32 `json:"qty"`
-	ClaimTimeout int32 `json:"claim_timeout"`
+	Qty          int32 `json:"qty" validate:"min=1"`
+	ClaimTimeout int32 `json:"claim_timeout" validate:"min=1"`
 }
 
 // ClaimTasksResponse is the response for POST /queues/{queue_name}/tasks/claim.

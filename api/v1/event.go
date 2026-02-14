@@ -7,7 +7,7 @@ import (
 
 // EmitEventRequest is the body for POST /events.
 type EmitEventRequest struct {
-	EventName string          `json:"event_name"`
+	EventName string          `json:"event_name" validate:"required"`
 	Payload   json.RawMessage `json:"payload,omitempty"`
 }
 

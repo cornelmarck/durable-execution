@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
+	"github.com/go-playground/validator/v10"
 )
 
 // Service defines the domain operations that API handlers delegate to.
@@ -68,12 +69,19 @@ func writeError(w http.ResponseWriter, err error) {
 	})
 }
 
-// decode reads the request body as JSON into dst. Returns false and writes a
-// 400 response if decoding fails.
-func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
-	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+var validate = validator.New()
+
+// decodeAndValidate reads the request body as JSON into a new T, then validates
+// struct tags. Returns the zero value and false (writing a 400) on failure.
+func decodeAndValidate[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
+	var v T
+	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
 		writeError(w, apiv1.ErrBadRequest("invalid JSON: "+err.Error()))
-		return false
+		return v, false
 	}
-	return true
+	if err := validate.Struct(v); err != nil {
+		writeError(w, apiv1.ErrBadRequest(err.Error()))
+		return v, false
+	}
+	return v, true
 }

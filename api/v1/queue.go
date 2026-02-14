@@ -10,7 +10,7 @@ type CleanupPolicy struct {
 
 // CreateQueueRequest is the body for POST /queues.
 type CreateQueueRequest struct {
-	Name    string         `json:"name"`
+	Name    string         `json:"name" validate:"required"`
 	Cleanup *CleanupPolicy `json:"cleanup,omitempty"`
 }
 

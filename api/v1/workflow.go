@@ -18,7 +18,7 @@ const (
 
 // CreateWorkflowRunRequest is the body for POST /workflow-runs.
 type CreateWorkflowRunRequest struct {
-	WorkflowName    string            `json:"workflow_name"`
+	WorkflowName    string            `json:"workflow_name" validate:"required"`
 	WorkflowVersion *string           `json:"workflow_version,omitempty"`
 	Inputs          json.RawMessage   `json:"inputs,omitempty"`
 	CreatedBy       *string           `json:"created_by,omitempty"`
