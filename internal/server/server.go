@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
@@ -42,7 +43,7 @@ type Service interface {
 func NewServer(svc Service) http.Handler {
 	mux := http.NewServeMux()
 	addRoutes(mux, svc)
-	return mux
+	return logMiddleware(mux)
 }
 
 // writeJSON encodes v as JSON and writes it with the given status code.
@@ -63,6 +64,7 @@ func writeError(w http.ResponseWriter, err error) {
 		})
 		return
 	}
+	slog.Error("internal error", "error", err)
 	writeJSON(w, http.StatusInternalServerError, apiv1.ErrorResponse{
 		Error: "internal error",
 		Code:  "INTERNAL_ERROR",

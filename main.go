@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,13 +14,13 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+	if err := run(ctx); err != nil {
+		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, w io.Writer) error {
+func run(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 
@@ -44,11 +43,12 @@ func run(ctx context.Context, w io.Writer) error {
 		httpServer.Shutdown(context.Background())
 	}()
 
-	fmt.Fprintf(w, "Listening on %s\n", httpServer.Addr)
-	fmt.Fprintf(w, "Swagger UI: http://localhost%s/docs\n", httpServer.Addr)
+	slog.Info("server started", "addr", httpServer.Addr)
+	slog.Info("swagger ui", "url", "http://localhost"+httpServer.Addr+"/docs")
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	wg.Wait()
+	slog.Info("server stopped")
 	return nil
 }
