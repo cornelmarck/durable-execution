@@ -21,6 +21,11 @@ type CreateQueueResponse struct {
 	Cleanup   *CleanupPolicy `json:"cleanup,omitempty"`
 }
 
+// ListQueuesResponse is the response for GET /queues.
+type ListQueuesResponse struct {
+	Queues []CreateQueueResponse `json:"queues"`
+}
+
 // QueueStatsResponse is the response for GET /queues/{queue_name}/stats.
 type QueueStatsResponse struct {
 	QueueName               string   `json:"queue_name"`

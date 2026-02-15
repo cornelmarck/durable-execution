@@ -6,6 +6,12 @@ RETURNING *;
 -- name: GetQueueByName :one
 SELECT * FROM queues WHERE name = $1;
 
+-- name: ListQueues :many
+SELECT * FROM queues ORDER BY created_at DESC;
+
+-- name: DeleteQueue :exec
+DELETE FROM queues WHERE id = $1;
+
 -- name: GetQueueStats :one
 SELECT
     COUNT(*) FILTER (WHERE r.status = 'pending') AS pending_runs,

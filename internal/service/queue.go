@@ -46,6 +46,36 @@ func (s *Service) CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest)
 	}, nil
 }
 
+func (s *Service) ListQueues(ctx context.Context) (*apiv1.ListQueuesResponse, error) {
+	rows, err := s.store.ListQueues(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	queues := make([]apiv1.CreateQueueResponse, 0, len(rows))
+	for _, q := range rows {
+		queues = append(queues, apiv1.CreateQueueResponse{
+			Name:      q.Name,
+			CreatedAt: q.CreatedAt.Time,
+			Cleanup: &apiv1.CleanupPolicy{
+				TaskTTLSeconds:  &q.TaskTtlSeconds,
+				EventTTLSeconds: &q.EventTtlSeconds,
+			},
+		})
+	}
+
+	return &apiv1.ListQueuesResponse{Queues: queues}, nil
+}
+
+func (s *Service) DeleteQueue(ctx context.Context, queueName string) error {
+	q, err := s.store.GetQueueByName(ctx, queueName)
+	if err != nil {
+		return err
+	}
+
+	return s.store.DeleteQueue(ctx, q.ID)
+}
+
 func (s *Service) GetQueueStats(ctx context.Context, queueName string) (*apiv1.QueueStatsResponse, error) {
 	q, err := s.store.GetQueueByName(ctx, queueName)
 	if err != nil {

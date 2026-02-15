@@ -18,6 +18,8 @@ import (
 type Service interface {
 	// Queues
 	CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest) (*apiv1.CreateQueueResponse, error)
+	ListQueues(ctx context.Context) (*apiv1.ListQueuesResponse, error)
+	DeleteQueue(ctx context.Context, queueName string) error
 	GetQueueStats(ctx context.Context, queueName string) (*apiv1.QueueStatsResponse, error)
 
 	// Tasks

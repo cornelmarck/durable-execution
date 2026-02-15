@@ -66,6 +66,33 @@ func queuesCmd() *cli.Command {
 				},
 			},
 			{
+				Name:  "list",
+				Usage: "List all queues",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					resp, err := apiClient.ListQueues(ctx)
+					if err != nil {
+						return err
+					}
+					return printJSON(resp)
+				},
+			},
+			{
+				Name:      "delete",
+				Usage:     "Delete a queue",
+				ArgsUsage: "<queue_name>",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					name := cmd.Args().First()
+					if name == "" {
+						return fmt.Errorf("queue_name is required")
+					}
+					if err := apiClient.DeleteQueue(ctx, name); err != nil {
+						return err
+					}
+					fmt.Println("deleted")
+					return nil
+				},
+			},
+			{
 				Name:      "stats",
 				Usage:     "Get queue statistics",
 				ArgsUsage: "<queue_name>",

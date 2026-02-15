@@ -92,6 +92,16 @@ func (c *Client) CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest) 
 	return &resp, err
 }
 
+func (c *Client) ListQueues(ctx context.Context) (*apiv1.ListQueuesResponse, error) {
+	var resp apiv1.ListQueuesResponse
+	err := c.do(ctx, http.MethodGet, "/api/v1/queues", nil, &resp)
+	return &resp, err
+}
+
+func (c *Client) DeleteQueue(ctx context.Context, queue string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/queues/"+queue, nil, nil)
+}
+
 func (c *Client) GetQueueStats(ctx context.Context, queue string) (*apiv1.QueueStatsResponse, error) {
 	var resp apiv1.QueueStatsResponse
 	err := c.do(ctx, http.MethodGet, "/api/v1/queues/"+queue+"/stats", nil, &resp)

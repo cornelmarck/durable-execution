@@ -21,11 +21,17 @@ func logMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rw, r)
-		slog.Info("request",
+
+		attrs := []any{
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rw.status,
 			"duration", time.Since(start),
-		)
+		}
+		if rw.status >= 500 {
+			slog.Error("request", attrs...)
+		} else {
+			slog.Info("request", attrs...)
+		}
 	})
 }

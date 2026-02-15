@@ -22,6 +22,7 @@ from .types import (
     FailRunRequest,
     FailRunResponse,
     GetCheckpointResponse,
+    ListQueuesResponse,
     ListTasksResponse,
     QueueStatsResponse,
     RetryStrategy,
@@ -92,6 +93,8 @@ def _from_dict(cls: type, data: dict[str, Any]) -> Any:
             kwargs[name] = _from_dict(CleanupPolicy, val)
         elif ft == "list[ClaimedTask]":
             kwargs[name] = [_from_dict(ClaimedTask, t) for t in val]
+        elif ft == "list[CreateQueueResponse]":
+            kwargs[name] = [_from_dict(CreateQueueResponse, t) for t in val]
         elif ft == "list[TaskSummary]":
             kwargs[name] = [_from_dict(TaskSummary, t) for t in val]
         elif name == "kind" and cls is RetryStrategy:
@@ -155,6 +158,13 @@ class DurableClient:
     def create_queue(self, req: CreateQueueRequest) -> CreateQueueResponse:
         data = self._request("POST", "/api/v1/queues", json=_to_json(req))
         return _from_dict(CreateQueueResponse, data)
+
+    def list_queues(self) -> ListQueuesResponse:
+        data = self._request("GET", "/api/v1/queues")
+        return _from_dict(ListQueuesResponse, data)
+
+    def delete_queue(self, queue: str) -> None:
+        self._request("DELETE", f"/api/v1/queues/{queue}")
 
     def get_queue_stats(self, queue: str) -> QueueStatsResponse:
         data = self._request("GET", f"/api/v1/queues/{queue}/stats")

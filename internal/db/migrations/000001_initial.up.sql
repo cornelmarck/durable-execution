@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
 -- Tasks
 CREATE TABLE IF NOT EXISTS tasks (
     id                UUID PRIMARY KEY DEFAULT uuidv7(),
-    queue_id          UUID NOT NULL REFERENCES queues(id),
+    queue_id          UUID NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
     task_name         TEXT NOT NULL,
     params            JSONB,
     headers           JSONB,
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_queue_status ON tasks (queue_id, status);
 -- Runs
 CREATE TABLE IF NOT EXISTS runs (
     id                 UUID PRIMARY KEY DEFAULT uuidv7(),
-    task_id            UUID NOT NULL REFERENCES tasks(id),
+    task_id            UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     attempt            INT  NOT NULL DEFAULT 1,
     status             run_status NOT NULL DEFAULT 'pending',
     result             JSONB,
@@ -72,10 +72,10 @@ CREATE INDEX IF NOT EXISTS idx_runs_waiting ON runs (status, waiting_event_name)
 -- Checkpoints
 CREATE TABLE IF NOT EXISTS checkpoints (
     id           UUID PRIMARY KEY DEFAULT uuidv7(),
-    task_id      UUID NOT NULL REFERENCES tasks(id),
+    task_id      UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     step_name    TEXT NOT NULL,
     state        JSONB NOT NULL,
-    owner_run_id UUID NOT NULL REFERENCES runs(id),
+    owner_run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (task_id, step_name)

@@ -47,6 +47,9 @@ var _ Store = &StoreMock{}
 //			CreateWorkflowRunFunc: func(ctx context.Context, arg dbgen.CreateWorkflowRunParams) (dbgen.WorkflowRun, error) {
 //				panic("mock out the CreateWorkflowRun method")
 //			},
+//			DeleteQueueFunc: func(ctx context.Context, id pgtype.UUID) error {
+//				panic("mock out the DeleteQueue method")
+//			},
 //			ExecTxFunc: func(ctx context.Context, fn func(dbgen.Querier) error) error {
 //				panic("mock out the ExecTx method")
 //			},
@@ -82,6 +85,9 @@ var _ Store = &StoreMock{}
 //			},
 //			GetWorkflowRunFunc: func(ctx context.Context, id pgtype.UUID) (dbgen.WorkflowRun, error) {
 //				panic("mock out the GetWorkflowRun method")
+//			},
+//			ListQueuesFunc: func(ctx context.Context) ([]dbgen.Queue, error) {
+//				panic("mock out the ListQueues method")
 //			},
 //			ListTasksFunc: func(ctx context.Context, arg dbgen.ListTasksParams) ([]dbgen.ListTasksRow, error) {
 //				panic("mock out the ListTasks method")
@@ -138,6 +144,9 @@ type StoreMock struct {
 	// CreateWorkflowRunFunc mocks the CreateWorkflowRun method.
 	CreateWorkflowRunFunc func(ctx context.Context, arg dbgen.CreateWorkflowRunParams) (dbgen.WorkflowRun, error)
 
+	// DeleteQueueFunc mocks the DeleteQueue method.
+	DeleteQueueFunc func(ctx context.Context, id pgtype.UUID) error
+
 	// ExecTxFunc mocks the ExecTx method.
 	ExecTxFunc func(ctx context.Context, fn func(dbgen.Querier) error) error
 
@@ -173,6 +182,9 @@ type StoreMock struct {
 
 	// GetWorkflowRunFunc mocks the GetWorkflowRun method.
 	GetWorkflowRunFunc func(ctx context.Context, id pgtype.UUID) (dbgen.WorkflowRun, error)
+
+	// ListQueuesFunc mocks the ListQueues method.
+	ListQueuesFunc func(ctx context.Context) ([]dbgen.Queue, error)
 
 	// ListTasksFunc mocks the ListTasks method.
 	ListTasksFunc func(ctx context.Context, arg dbgen.ListTasksParams) ([]dbgen.ListTasksRow, error)
@@ -260,6 +272,13 @@ type StoreMock struct {
 			// Arg is the arg argument value.
 			Arg dbgen.CreateWorkflowRunParams
 		}
+		// DeleteQueue holds details about calls to the DeleteQueue method.
+		DeleteQueue []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ID is the id argument value.
+			ID pgtype.UUID
+		}
 		// ExecTx holds details about calls to the ExecTx method.
 		ExecTx []struct {
 			// Ctx is the ctx argument value.
@@ -342,6 +361,11 @@ type StoreMock struct {
 			// ID is the id argument value.
 			ID pgtype.UUID
 		}
+		// ListQueues holds details about calls to the ListQueues method.
+		ListQueues []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// ListTasks holds details about calls to the ListTasks method.
 		ListTasks []struct {
 			// Ctx is the ctx argument value.
@@ -401,6 +425,7 @@ type StoreMock struct {
 	lockCreateRun             sync.RWMutex
 	lockCreateTask            sync.RWMutex
 	lockCreateWorkflowRun     sync.RWMutex
+	lockDeleteQueue           sync.RWMutex
 	lockExecTx                sync.RWMutex
 	lockExpireTimedOutWaiters sync.RWMutex
 	lockExtendRunClaim        sync.RWMutex
@@ -413,6 +438,7 @@ type StoreMock struct {
 	lockGetRunsByTask         sync.RWMutex
 	lockGetTask               sync.RWMutex
 	lockGetWorkflowRun        sync.RWMutex
+	lockListQueues            sync.RWMutex
 	lockListTasks             sync.RWMutex
 	lockScheduleRun           sync.RWMutex
 	lockSetRunSleeping        sync.RWMutex
@@ -743,6 +769,42 @@ func (mock *StoreMock) CreateWorkflowRunCalls() []struct {
 	mock.lockCreateWorkflowRun.RLock()
 	calls = mock.calls.CreateWorkflowRun
 	mock.lockCreateWorkflowRun.RUnlock()
+	return calls
+}
+
+// DeleteQueue calls DeleteQueueFunc.
+func (mock *StoreMock) DeleteQueue(ctx context.Context, id pgtype.UUID) error {
+	if mock.DeleteQueueFunc == nil {
+		panic("StoreMock.DeleteQueueFunc: method is nil but Store.DeleteQueue was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		ID  pgtype.UUID
+	}{
+		Ctx: ctx,
+		ID:  id,
+	}
+	mock.lockDeleteQueue.Lock()
+	mock.calls.DeleteQueue = append(mock.calls.DeleteQueue, callInfo)
+	mock.lockDeleteQueue.Unlock()
+	return mock.DeleteQueueFunc(ctx, id)
+}
+
+// DeleteQueueCalls gets all the calls that were made to DeleteQueue.
+// Check the length with:
+//
+//	len(mockedStore.DeleteQueueCalls())
+func (mock *StoreMock) DeleteQueueCalls() []struct {
+	Ctx context.Context
+	ID  pgtype.UUID
+} {
+	var calls []struct {
+		Ctx context.Context
+		ID  pgtype.UUID
+	}
+	mock.lockDeleteQueue.RLock()
+	calls = mock.calls.DeleteQueue
+	mock.lockDeleteQueue.RUnlock()
 	return calls
 }
 
@@ -1171,6 +1233,38 @@ func (mock *StoreMock) GetWorkflowRunCalls() []struct {
 	mock.lockGetWorkflowRun.RLock()
 	calls = mock.calls.GetWorkflowRun
 	mock.lockGetWorkflowRun.RUnlock()
+	return calls
+}
+
+// ListQueues calls ListQueuesFunc.
+func (mock *StoreMock) ListQueues(ctx context.Context) ([]dbgen.Queue, error) {
+	if mock.ListQueuesFunc == nil {
+		panic("StoreMock.ListQueuesFunc: method is nil but Store.ListQueues was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockListQueues.Lock()
+	mock.calls.ListQueues = append(mock.calls.ListQueues, callInfo)
+	mock.lockListQueues.Unlock()
+	return mock.ListQueuesFunc(ctx)
+}
+
+// ListQueuesCalls gets all the calls that were made to ListQueues.
+// Check the length with:
+//
+//	len(mockedStore.ListQueuesCalls())
+func (mock *StoreMock) ListQueuesCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockListQueues.RLock()
+	calls = mock.calls.ListQueues
+	mock.lockListQueues.RUnlock()
 	return calls
 }
 

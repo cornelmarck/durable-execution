@@ -18,6 +18,7 @@ var (
 
 	// ErrConflict is returned when a write violates a unique constraint.
 	ErrConflict = errors.New("conflict")
+
 )
 
 // Store wraps the sqlc-generated Queries with a connection pool and
@@ -115,7 +116,12 @@ func (s *Store) CreateQueue(ctx context.Context, arg dbgen.CreateQueueParams) (d
 	return r, err
 }
 
+func (s *Store) DeleteQueue(ctx context.Context, id pgtype.UUID) error {
+	return s.Queries.DeleteQueue(ctx, id)
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
+

@@ -36,6 +36,15 @@ func (q *Queries) CreateQueue(ctx context.Context, arg CreateQueueParams) (Queue
 	return i, err
 }
 
+const deleteQueue = `-- name: DeleteQueue :exec
+DELETE FROM queues WHERE id = $1
+`
+
+func (q *Queries) DeleteQueue(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteQueue, id)
+	return err
+}
+
 const getQueueByName = `-- name: GetQueueByName :one
 SELECT id, name, task_ttl_seconds, event_ttl_seconds, created_at FROM queues WHERE name = $1
 `
@@ -81,4 +90,34 @@ func (q *Queries) GetQueueStats(ctx context.Context, queueID pgtype.UUID) (GetQu
 		&i.OldestPendingAgeSeconds,
 	)
 	return i, err
+}
+
+const listQueues = `-- name: ListQueues :many
+SELECT id, name, task_ttl_seconds, event_ttl_seconds, created_at FROM queues ORDER BY created_at DESC
+`
+
+func (q *Queries) ListQueues(ctx context.Context) ([]Queue, error) {
+	rows, err := q.db.Query(ctx, listQueues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Queue{}
+	for rows.Next() {
+		var i Queue
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.TaskTtlSeconds,
+			&i.EventTtlSeconds,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

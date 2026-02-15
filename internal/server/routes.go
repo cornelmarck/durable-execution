@@ -10,7 +10,9 @@ import (
 
 func addRoutes(mux *http.ServeMux, svc Service) {
 	// Queues
+	mux.Handle("GET /api/v1/queues", handleListQueues(svc))
 	mux.Handle("POST /api/v1/queues", handleCreateQueue(svc))
+	mux.Handle("DELETE /api/v1/queues/{queue_name}", handleDeleteQueue(svc))
 	mux.Handle("GET /api/v1/queues/{queue_name}/stats", handleGetQueueStats(svc))
 
 	// Tasks
@@ -288,6 +290,29 @@ func handleUpdateWorkflowRun(svc Service) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
+	})
+}
+
+func handleListQueues(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp, err := svc.ListQueues(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	})
+}
+
+func handleDeleteQueue(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queueName := r.PathValue("queue_name")
+
+		if err := svc.DeleteQueue(r.Context(), queueName); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 }
 

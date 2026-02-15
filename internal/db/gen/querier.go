@@ -20,6 +20,7 @@ type Querier interface {
 	CreateRun(ctx context.Context, arg CreateRunParams) (Run, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (pgtype.UUID, error)
 	CreateWorkflowRun(ctx context.Context, arg CreateWorkflowRunParams) (WorkflowRun, error)
+	DeleteQueue(ctx context.Context, id pgtype.UUID) error
 	ExpireTimedOutWaiters(ctx context.Context) ([]Run, error)
 	ExtendRunClaim(ctx context.Context, arg ExtendRunClaimParams) error
 	FailRun(ctx context.Context, arg FailRunParams) error
@@ -31,6 +32,7 @@ type Querier interface {
 	GetRunsByTask(ctx context.Context, taskID pgtype.UUID) ([]Run, error)
 	GetTask(ctx context.Context, id pgtype.UUID) (Task, error)
 	GetWorkflowRun(ctx context.Context, id pgtype.UUID) (WorkflowRun, error)
+	ListQueues(ctx context.Context) ([]Queue, error)
 	ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error)
 	ScheduleRun(ctx context.Context, arg ScheduleRunParams) error
 	SetRunSleeping(ctx context.Context, arg SetRunSleepingParams) error

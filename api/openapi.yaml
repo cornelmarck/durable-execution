@@ -36,6 +36,32 @@ servers:
 
 paths:
   /queues:
+    get:
+      operationId: listQueues
+      summary: List all queues
+      tags: [Queues]
+      responses:
+        "200":
+          description: List of queues
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queues]
+                properties:
+                  queues:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, created_at]
+                      properties:
+                        name:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        cleanup:
+                          $ref: "#/components/schemas/CleanupPolicy"
     post:
       operationId: createQueue
       summary: Create a queue
@@ -69,6 +95,23 @@ paths:
                     format: date-time
                   cleanup:
                     $ref: "#/components/schemas/CleanupPolicy"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /queues/{queue_name}:
+    delete:
+      operationId: deleteQueue
+      summary: Delete a queue
+      description: |
+        Deletes a queue. Fails with 409 if the queue still has tasks.
+      tags: [Queues]
+      parameters:
+        - $ref: "#/components/parameters/QueueName"
+      responses:
+        "204":
+          description: Queue deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
 

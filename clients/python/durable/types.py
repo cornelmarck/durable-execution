@@ -85,6 +85,11 @@ class CreateQueueResponse:
 
 
 @dataclass
+class ListQueuesResponse:
+    queues: list[CreateQueueResponse] = field(default_factory=list)
+
+
+@dataclass
 class QueueStatsResponse:
     queue_name: str
     pending_runs: int
