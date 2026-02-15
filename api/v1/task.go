@@ -49,7 +49,7 @@ type CreateTaskRequest struct {
 	MaxAttempts      *int32            `json:"max_attempts,omitempty"`
 	StartTimeout     *int32            `json:"start_timeout,omitempty"`
 	ExecutionTimeout *int32            `json:"execution_timeout,omitempty"`
-	WorkflowRunID    *string           `json:"workflow_run_id,omitempty"`
+	WorkflowRunID    *string           `json:"workflow_run_id,omitempty" validate:"omitempty,uuid"`
 }
 
 // CreateTaskResponse is the response for POST /queues/{queue_name}/tasks.

@@ -11,6 +11,7 @@ import (
 	db "github.com/cornelmarck/durable-execution/internal/db"
 	"github.com/cornelmarck/durable-execution/internal/service"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // Service defines the domain operations that API handlers delegate to.
@@ -83,6 +84,15 @@ func writeBadRequest(w http.ResponseWriter, msg string) {
 }
 
 var validate = validator.New()
+
+// validateUUID checks that s is a valid UUID, writing a 400 response if not.
+func validateUUID(w http.ResponseWriter, name, s string) bool {
+	if _, err := uuid.Parse(s); err != nil {
+		writeBadRequest(w, name+" must be a valid UUID")
+		return false
+	}
+	return true
+}
 
 // decodeAndValidate reads the request body as JSON into a new T, then validates
 // struct tags. Returns the zero value and false (writing a 400) on failure.

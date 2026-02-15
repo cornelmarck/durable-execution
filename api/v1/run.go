@@ -82,7 +82,7 @@ type ScheduleRunResponse struct {
 type WaitForEventRequest struct {
 	EventName      string `json:"event_name" validate:"required"`
 	TimeoutSeconds int32  `json:"timeout_seconds" validate:"min=1"`
-	TaskID         string `json:"task_id" validate:"required"`
+	TaskID         string `json:"task_id" validate:"required,uuid"`
 	StepName       string `json:"step_name" validate:"required"`
 }
 

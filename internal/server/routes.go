@@ -70,6 +70,9 @@ func handleListTasks(svc Service) http.Handler {
 			taskName = &v
 		}
 		if v := q.Get("cursor"); v != "" {
+			if !validateUUID(w, "cursor", v) {
+				return
+			}
 			cursor = &v
 		}
 
@@ -131,6 +134,9 @@ func handleClaimTasks(svc Service) http.Handler {
 func handleCompleteRun(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		runID := r.PathValue("run_id")
+		if !validateUUID(w, "run_id", runID) {
+			return
+		}
 
 		var req apiv1.CompleteRunRequest
 		if r.ContentLength > 0 {
@@ -152,6 +158,9 @@ func handleCompleteRun(svc Service) http.Handler {
 func handleFailRun(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		runID := r.PathValue("run_id")
+		if !validateUUID(w, "run_id", runID) {
+			return
+		}
 
 		req, ok := decodeAndValidate[apiv1.FailRunRequest](w, r)
 		if !ok {
@@ -170,6 +179,9 @@ func handleFailRun(svc Service) http.Handler {
 func handleScheduleRun(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		runID := r.PathValue("run_id")
+		if !validateUUID(w, "run_id", runID) {
+			return
+		}
 
 		req, ok := decodeAndValidate[apiv1.ScheduleRunRequest](w, r)
 		if !ok {
@@ -188,6 +200,9 @@ func handleScheduleRun(svc Service) http.Handler {
 func handleWaitForEvent(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		runID := r.PathValue("run_id")
+		if !validateUUID(w, "run_id", runID) {
+			return
+		}
 
 		req, ok := decodeAndValidate[apiv1.WaitForEventRequest](w, r)
 		if !ok {
@@ -214,6 +229,9 @@ func handleWaitForEvent(svc Service) http.Handler {
 func handleSetCheckpoint(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		taskID := r.PathValue("task_id")
+		if !validateUUID(w, "task_id", taskID) {
+			return
+		}
 		stepName := r.PathValue("step_name")
 
 		req, ok := decodeAndValidate[apiv1.SetCheckpointRequest](w, r)
@@ -233,6 +251,9 @@ func handleSetCheckpoint(svc Service) http.Handler {
 func handleGetCheckpoint(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		taskID := r.PathValue("task_id")
+		if !validateUUID(w, "task_id", taskID) {
+			return
+		}
 		stepName := r.PathValue("step_name")
 
 		resp, err := svc.GetCheckpoint(r.Context(), taskID, stepName)
@@ -279,6 +300,9 @@ func handleCreateWorkflowRun(svc Service) http.Handler {
 func handleUpdateWorkflowRun(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		workflowRunID := r.PathValue("workflow_run_id")
+		if !validateUUID(w, "workflow_run_id", workflowRunID) {
+			return
+		}
 
 		req, ok := decodeAndValidate[apiv1.UpdateWorkflowRunRequest](w, r)
 		if !ok {
@@ -323,12 +347,18 @@ func handleListRuns(svc Service) http.Handler {
 
 		var taskID, status, cursor *string
 		if v := q.Get("task_id"); v != "" {
+			if !validateUUID(w, "task_id", v) {
+				return
+			}
 			taskID = &v
 		}
 		if v := q.Get("status"); v != "" {
 			status = &v
 		}
 		if v := q.Get("cursor"); v != "" {
+			if !validateUUID(w, "cursor", v) {
+				return
+			}
 			cursor = &v
 		}
 

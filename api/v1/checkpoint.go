@@ -8,7 +8,7 @@ import (
 // SetCheckpointRequest is the body for PUT /tasks/{task_id}/checkpoints/{step_name}.
 type SetCheckpointRequest struct {
 	State         json.RawMessage `json:"state" validate:"required"`
-	OwnerRun      string          `json:"owner_run" validate:"required"`
+	OwnerRun      string          `json:"owner_run" validate:"required,uuid"`
 	ExtendClaimBy *int32          `json:"extend_claim_by,omitempty"`
 }
 
