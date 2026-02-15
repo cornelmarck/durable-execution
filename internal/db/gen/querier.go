@@ -15,6 +15,7 @@ type Querier interface {
 	CleanupCompletedRuns(ctx context.Context, ttlSeconds int32) error
 	CleanupEvents(ctx context.Context, ttlSeconds int32) error
 	CompleteRun(ctx context.Context, arg CompleteRunParams) error
+	CountQueues(ctx context.Context) (int64, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Event, error)
 	CreateQueue(ctx context.Context, arg CreateQueueParams) (Queue, error)
 	CreateRun(ctx context.Context, arg CreateRunParams) (Run, error)

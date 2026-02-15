@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countQueues = `-- name: CountQueues :one
+SELECT COUNT(*) FROM queues
+`
+
+func (q *Queries) CountQueues(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countQueues)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createQueue = `-- name: CreateQueue :one
 INSERT INTO queues (name, task_ttl_seconds, event_ttl_seconds)
 VALUES ($1, $2, $3)

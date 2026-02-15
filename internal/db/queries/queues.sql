@@ -6,6 +6,9 @@ RETURNING *;
 -- name: GetQueueByName :one
 SELECT * FROM queues WHERE name = $1;
 
+-- name: CountQueues :one
+SELECT COUNT(*) FROM queues;
+
 -- name: ListQueues :many
 SELECT * FROM queues ORDER BY created_at DESC;
 

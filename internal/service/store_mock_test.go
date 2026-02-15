@@ -32,6 +32,9 @@ var _ Store = &StoreMock{}
 //			CompleteRunFunc: func(ctx context.Context, arg dbgen.CompleteRunParams) error {
 //				panic("mock out the CompleteRun method")
 //			},
+//			CountQueuesFunc: func(ctx context.Context) (int64, error) {
+//				panic("mock out the CountQueues method")
+//			},
 //			CreateEventFunc: func(ctx context.Context, arg dbgen.CreateEventParams) (dbgen.Event, error) {
 //				panic("mock out the CreateEvent method")
 //			},
@@ -128,6 +131,9 @@ type StoreMock struct {
 
 	// CompleteRunFunc mocks the CompleteRun method.
 	CompleteRunFunc func(ctx context.Context, arg dbgen.CompleteRunParams) error
+
+	// CountQueuesFunc mocks the CountQueues method.
+	CountQueuesFunc func(ctx context.Context) (int64, error)
 
 	// CreateEventFunc mocks the CreateEvent method.
 	CreateEventFunc func(ctx context.Context, arg dbgen.CreateEventParams) (dbgen.Event, error)
@@ -236,6 +242,11 @@ type StoreMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg dbgen.CompleteRunParams
+		}
+		// CountQueues holds details about calls to the CountQueues method.
+		CountQueues []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// CreateEvent holds details about calls to the CreateEvent method.
 		CreateEvent []struct {
@@ -420,6 +431,7 @@ type StoreMock struct {
 	lockCleanupCompletedRuns  sync.RWMutex
 	lockCleanupEvents         sync.RWMutex
 	lockCompleteRun           sync.RWMutex
+	lockCountQueues           sync.RWMutex
 	lockCreateEvent           sync.RWMutex
 	lockCreateQueue           sync.RWMutex
 	lockCreateRun             sync.RWMutex
@@ -589,6 +601,38 @@ func (mock *StoreMock) CompleteRunCalls() []struct {
 	mock.lockCompleteRun.RLock()
 	calls = mock.calls.CompleteRun
 	mock.lockCompleteRun.RUnlock()
+	return calls
+}
+
+// CountQueues calls CountQueuesFunc.
+func (mock *StoreMock) CountQueues(ctx context.Context) (int64, error) {
+	if mock.CountQueuesFunc == nil {
+		panic("StoreMock.CountQueuesFunc: method is nil but Store.CountQueues was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockCountQueues.Lock()
+	mock.calls.CountQueues = append(mock.calls.CountQueues, callInfo)
+	mock.lockCountQueues.Unlock()
+	return mock.CountQueuesFunc(ctx)
+}
+
+// CountQueuesCalls gets all the calls that were made to CountQueues.
+// Check the length with:
+//
+//	len(mockedStore.CountQueuesCalls())
+func (mock *StoreMock) CountQueuesCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockCountQueues.RLock()
+	calls = mock.calls.CountQueues
+	mock.lockCountQueues.RUnlock()
 	return calls
 }
 

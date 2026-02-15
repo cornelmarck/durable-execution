@@ -10,9 +10,20 @@ import (
 	dbgen "github.com/cornelmarck/durable-execution/internal/db/gen"
 )
 
-const defaultTTLSeconds = int32(3600)
+const (
+	defaultTTLSeconds = int32(3600)
+	maxQueues         = 128
+)
 
 func (s *Service) CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest) (*apiv1.CreateQueueResponse, error) {
+	count, err := s.store.CountQueues(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if count >= maxQueues {
+		return nil, fmt.Errorf("maximum number of queues (%d) reached: %w", maxQueues, ErrBadRequest)
+	}
+
 	taskTTL := defaultTTLSeconds
 	eventTTL := defaultTTLSeconds
 	if req.Cleanup != nil {

@@ -49,6 +49,9 @@ func (n *fakeNotifier) Notify(queueName string) {
 
 func TestCreateQueue_Conflict(t *testing.T) {
 	mock := &StoreMock{
+		CountQueuesFunc: func(ctx context.Context) (int64, error) {
+			return 0, nil
+		},
 		CreateQueueFunc: func(ctx context.Context, arg dbgen.CreateQueueParams) (dbgen.Queue, error) {
 			return dbgen.Queue{}, db.ErrConflict
 		},
