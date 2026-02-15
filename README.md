@@ -53,26 +53,28 @@ curl -s localhost:8080/api/v1/queues/demo/tasks/claim \
 A command-line tool for interacting with the server.
 
 ```bash
-go install ./cmd/cli
+go install ./cmd/durablectl
 ```
+
+Make sure `$GOPATH/bin` is in your PATH: `export PATH="$PATH:$(go env GOPATH)/bin"`
 
 ### Commands
 
 ```
-durable queues create --name <queue>    Create a queue
-durable queues stats <queue>            Get queue statistics
-durable tasks spawn --queue <q> --name <task>   Spawn a task
-durable tasks claim --queue <q>         Claim tasks
-durable tasks list                      List tasks
-durable runs complete <run_id>          Complete a run
-durable runs fail <run_id> --error <msg>  Fail a run
-durable events emit --name <event>      Emit an event
+durablectl queues create --name <queue>    Create a queue
+durablectl queues stats <queue>            Get queue statistics
+durablectl tasks spawn --queue <q> --name <task>   Spawn a task
+durablectl tasks claim --queue <q>         Claim tasks
+durablectl tasks list                      List tasks
+durablectl runs complete <run_id>          Complete a run
+durablectl runs fail <run_id> --error <msg>  Fail a run
+durablectl events emit --name <event>      Emit an event
 ```
 
 ### Example: queue stats
 
 ```
-$ durable queues stats demo
+$ durablectl queues stats demo
 {
   "queue_name": "demo",
   "pending_runs": 12,
@@ -85,14 +87,14 @@ $ durable queues stats demo
 Use `--server` or `DURABLE_SERVER` to point at a different host:
 
 ```bash
-durable --server https://prod:8080 queues stats demo
+durablectl --server https://prod:8080 queues stats demo
 ```
 
 ## Clients
 
 - **Go** — `clients/go`
 - **Python** — `clients/python` (sync, based on httpx)
-- **CLI** — `cmd/cli`
+- **CLI** — `cmd/durablectl`
 
 ## Project structure
 
@@ -100,7 +102,7 @@ durable --server https://prod:8080 queues stats demo
 api/                  OpenAPI spec and Go API types
 clients/go/           Go HTTP client
 clients/python/       Python HTTP client
-cmd/cli/              CLI tool
+cmd/durablectl/       CLI tool
 examples/             Example workflows
 internal/
   db/                 Store, listener, migrations

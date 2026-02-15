@@ -15,7 +15,7 @@ var apiClient *client.Client
 
 func main() {
 	app := &cli.Command{
-		Name:  "durable",
+		Name:  "durablectl",
 		Usage: "CLI for the durable-execution API",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
