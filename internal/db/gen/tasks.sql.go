@@ -82,22 +82,17 @@ JOIN queues q ON q.id = t.queue_id
 WHERE (q.name = $1 OR $1 IS NULL)
   AND (t.status::text = $2 OR $2 IS NULL)
   AND (t.task_name = $3 OR $3 IS NULL)
-  AND (
-    $4::timestamptz IS NULL
-    OR t.created_at < $4::timestamptz
-    OR (t.created_at = $4::timestamptz AND t.id < $5::uuid)
-  )
-ORDER BY t.created_at DESC, t.id DESC
-LIMIT $6
+  AND ($4::uuid IS NULL OR t.id < $4::uuid)
+ORDER BY t.id DESC
+LIMIT $5
 `
 
 type ListTasksParams struct {
-	QueueName       pgtype.Text        `json:"queue_name"`
-	Status          NullTaskStatus     `json:"status"`
-	TaskName        pgtype.Text        `json:"task_name"`
-	CursorCreatedAt pgtype.Timestamptz `json:"cursor_created_at"`
-	CursorID        pgtype.UUID        `json:"cursor_id"`
-	Lim             int32              `json:"lim"`
+	QueueName pgtype.Text    `json:"queue_name"`
+	Status    NullTaskStatus `json:"status"`
+	TaskName  pgtype.Text    `json:"task_name"`
+	CursorID  pgtype.UUID    `json:"cursor_id"`
+	Lim       int32          `json:"lim"`
 }
 
 type ListTasksRow struct {
@@ -115,7 +110,6 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 		arg.QueueName,
 		arg.Status,
 		arg.TaskName,
-		arg.CursorCreatedAt,
 		arg.CursorID,
 		arg.Lim,
 	)

@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -167,11 +165,10 @@ func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cu
 	}
 
 	if cursor != nil {
-		cursorCreatedAt, cursorID, err := decodeCursor(*cursor)
+		cursorID, err := parseUUID(*cursor)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %w", ErrBadRequest)
 		}
-		params.CursorCreatedAt = cursorCreatedAt
 		params.CursorID = cursorID
 	}
 
@@ -184,7 +181,7 @@ func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cu
 	if int32(len(rows)) > limit {
 		rows = rows[:limit]
 		last := rows[limit-1]
-		c := encodeCursor(last.CreatedAt, last.ID)
+		c := uuidString(last.ID)
 		nextCursor = &c
 	}
 
@@ -208,28 +205,3 @@ func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cu
 	return &apiv1.ListTasksResponse{Tasks: tasks, NextCursor: nextCursor}, nil
 }
 
-func encodeCursor(createdAt pgtype.Timestamptz, id pgtype.UUID) string {
-	return base64.StdEncoding.EncodeToString(
-		[]byte(createdAt.Time.Format(time.RFC3339Nano) + "|" + uuidString(id)),
-	)
-}
-
-func decodeCursor(cursor string) (pgtype.Timestamptz, pgtype.UUID, error) {
-	b, err := base64.StdEncoding.DecodeString(cursor)
-	if err != nil {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, err
-	}
-	parts := strings.SplitN(string(b), "|", 2)
-	if len(parts) != 2 {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, fmt.Errorf("malformed cursor")
-	}
-	t, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, err
-	}
-	id, err := parseUUID(parts[1])
-	if err != nil {
-		return pgtype.Timestamptz{}, pgtype.UUID{}, err
-	}
-	return pgtype.Timestamptz{Time: t, Valid: true}, id, nil
-}
