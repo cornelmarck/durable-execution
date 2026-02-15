@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
 	client "github.com/cornelmarck/durable-execution/clients/go"
@@ -12,6 +13,50 @@ import (
 )
 
 var apiClient *client.Client
+
+type config struct {
+	Server string `json:"server,omitempty"`
+}
+
+func configPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".durablectl", "config.json")
+}
+
+func loadConfig() config {
+	data, err := os.ReadFile(configPath())
+	if err != nil {
+		return config{}
+	}
+	var cfg config
+	json.Unmarshal(data, &cfg)
+	return cfg
+}
+
+func saveConfig(cfg config) error {
+	dir := filepath.Dir(configPath())
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath(), data, 0600)
+}
+
+func resolveServer(cmd *cli.Command) string {
+	// --server flag or DURABLE_SERVER env was explicitly set
+	if cmd.IsSet("server") {
+		return cmd.String("server")
+	}
+	// Config file
+	if cfg := loadConfig(); cfg.Server != "" {
+		return cfg.Server
+	}
+	// Default
+	return "http://localhost:8080"
+}
 
 func main() {
 	app := &cli.Command{
@@ -21,16 +66,16 @@ func main() {
 			&cli.StringFlag{
 				Name:    "server",
 				Aliases: []string{"s"},
-				Value:   "http://localhost:8080",
 				Usage:   "server base URL",
 				Sources: cli.EnvVars("DURABLE_SERVER"),
 			},
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			apiClient = client.New(cmd.String("server"))
+			apiClient = client.New(resolveServer(cmd))
 			return ctx, nil
 		},
 		Commands: []*cli.Command{
+			configCmd(),
 			queuesCmd(),
 			tasksCmd(),
 			runsCmd(),
@@ -41,6 +86,46 @@ func main() {
 	if err := app.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func configCmd() *cli.Command {
+	return &cli.Command{
+		Name:  "config",
+		Usage: "Manage CLI configuration",
+		Commands: []*cli.Command{
+			{
+				Name:      "set-server",
+				Usage:     "Set the default server URL",
+				ArgsUsage: "<url>",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					url := cmd.Args().First()
+					if url == "" {
+						return fmt.Errorf("url is required")
+					}
+					cfg := loadConfig()
+					cfg.Server = url
+					if err := saveConfig(cfg); err != nil {
+						return err
+					}
+					fmt.Printf("Server set to %s\n", url)
+					return nil
+				},
+			},
+			{
+				Name:  "get-server",
+				Usage: "Show the current server URL",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					cfg := loadConfig()
+					if cfg.Server == "" {
+						fmt.Println("http://localhost:8080 (default)")
+					} else {
+						fmt.Println(cfg.Server)
+					}
+					return nil
+				},
+			},
+		},
 	}
 }
 
