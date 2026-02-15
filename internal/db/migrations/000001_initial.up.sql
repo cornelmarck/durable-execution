@@ -1,7 +1,7 @@
 -- Enum types
-CREATE TYPE task_status AS ENUM ('pending', 'completed', 'failed', 'cancelled');
+CREATE TYPE task_status AS ENUM ('pending', 'completed', 'failed', 'canceled');
 CREATE TYPE run_status AS ENUM ('pending', 'claimed', 'completed', 'failed', 'sleeping');
-CREATE TYPE workflow_run_status AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled');
+CREATE TYPE workflow_run_status AS ENUM ('pending', 'running', 'completed', 'failed', 'canceled');
 
 -- Queues
 CREATE TABLE IF NOT EXISTS queues (

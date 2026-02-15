@@ -79,7 +79,7 @@ func tasksCmd() *cli.Command {
 				Usage: "List tasks",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "queue", Usage: "filter by queue name"},
-					&cli.StringFlag{Name: "status", Usage: "filter by status (pending, completed, failed, cancelled)"},
+					&cli.StringFlag{Name: "status", Usage: "filter by status (pending, completed, failed, canceled)"},
 					&cli.StringFlag{Name: "name", Usage: "filter by task name"},
 					&cli.StringFlag{Name: "cursor", Usage: "pagination cursor from previous response"},
 					&cli.IntFlag{Name: "limit", Value: 50, Usage: "max tasks to return"},

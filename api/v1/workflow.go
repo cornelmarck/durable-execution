@@ -13,7 +13,7 @@ const (
 	WorkflowRunStatusRunning   WorkflowRunStatus = "running"
 	WorkflowRunStatusCompleted WorkflowRunStatus = "completed"
 	WorkflowRunStatusFailed    WorkflowRunStatus = "failed"
-	WorkflowRunStatusCancelled WorkflowRunStatus = "cancelled"
+	WorkflowRunStatusCanceled WorkflowRunStatus = "canceled"
 )
 
 // CreateWorkflowRunRequest is the body for POST /workflow-runs.

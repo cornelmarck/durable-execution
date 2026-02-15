@@ -62,7 +62,7 @@ const (
 	TaskStatusPending   TaskStatus = "pending"
 	TaskStatusCompleted TaskStatus = "completed"
 	TaskStatusFailed    TaskStatus = "failed"
-	TaskStatusCancelled TaskStatus = "cancelled"
+	TaskStatusCanceled  TaskStatus = "canceled"
 )
 
 func (e *TaskStatus) Scan(src interface{}) error {
@@ -107,7 +107,7 @@ const (
 	WorkflowRunStatusRunning   WorkflowRunStatus = "running"
 	WorkflowRunStatusCompleted WorkflowRunStatus = "completed"
 	WorkflowRunStatusFailed    WorkflowRunStatus = "failed"
-	WorkflowRunStatusCancelled WorkflowRunStatus = "cancelled"
+	WorkflowRunStatusCanceled  WorkflowRunStatus = "canceled"
 )
 
 func (e *WorkflowRunStatus) Scan(src interface{}) error {

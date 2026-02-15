@@ -9,7 +9,7 @@ const (
 	TaskStatusPending   TaskStatus = "pending"
 	TaskStatusCompleted TaskStatus = "completed"
 	TaskStatusFailed    TaskStatus = "failed"
-	TaskStatusCancelled TaskStatus = "cancelled"
+	TaskStatusCanceled TaskStatus = "canceled"
 )
 
 // RetryStrategyKind identifies the retry back-off algorithm.

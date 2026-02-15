@@ -545,7 +545,7 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [pending, running, completed, failed, cancelled]
+                  enum: [pending, running, completed, failed, canceled]
                 result:
                   description: Arbitrary result data
                 started_at:
@@ -629,14 +629,14 @@ components:
           minimum: 0
           description: |
             Maximum seconds the task can wait in the queue before being claimed.
-            The task is cancelled if not claimed within this window. 0 means no limit.
+            The task is canceled if not claimed within this window. 0 means no limit.
           example: 3600
         execution_timeout:
           type: integer
           minimum: 0
           description: |
             Maximum wall-clock seconds from task creation to completion.
-            The task is cancelled if not completed within this window, regardless
+            The task is canceled if not completed within this window, regardless
             of retries. This is distinct from claim_timeout, which limits how long
             a single worker can hold a lease on a run.
           example: 7200

@@ -13,7 +13,7 @@ class TaskStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
+    CANCELED = "canceled"
 
 
 class RunStatus(StrEnum):
@@ -29,7 +29,7 @@ class WorkflowRunStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
+    CANCELED = "canceled"
 
 
 class WaitResult(StrEnum):
