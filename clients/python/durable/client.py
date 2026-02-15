@@ -130,8 +130,11 @@ class DurableClient:
         *,
         json: Any | None = None,
         params: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
     ) -> dict[str, Any]:
-        resp = self._http.request(method, path, json=json, params=params)
+        resp = self._http.request(
+            method, path, json=json, params=params, timeout=timeout
+        )
         if resp.status_code >= 400:
             body = ErrorResponse()
             try:
@@ -157,11 +160,21 @@ class DurableClient:
     # ------------------------------------------------------------------
 
     def spawn_task(self, queue: str, req: SpawnTaskRequest) -> SpawnTaskResponse:
-        data = self._request("POST", f"/api/v1/queues/{queue}/tasks", json=_to_json(req))
+        data = self._request(
+            "POST", f"/api/v1/queues/{queue}/tasks", json=_to_json(req)
+        )
         return _from_dict(SpawnTaskResponse, data)
 
     def claim_tasks(self, queue: str, req: ClaimTasksRequest) -> ClaimTasksResponse:
-        data = self._request("POST", f"/api/v1/queues/{queue}/tasks/claim", json=_to_json(req))
+        timeout = None
+        if req.long_poll_seconds is not None:
+            timeout = httpx.Timeout(5.0, read=req.long_poll_seconds + 5)
+        data = self._request(
+            "POST",
+            f"/api/v1/queues/{queue}/tasks/claim",
+            json=_to_json(req),
+            timeout=timeout,
+        )
         return _from_dict(ClaimTasksResponse, data)
 
     def list_tasks(
@@ -192,7 +205,9 @@ class DurableClient:
     # ------------------------------------------------------------------
 
     def complete_run(self, run_id: str, req: CompleteRunRequest) -> CompleteRunResponse:
-        data = self._request("POST", f"/api/v1/runs/{run_id}/complete", json=_to_json(req))
+        data = self._request(
+            "POST", f"/api/v1/runs/{run_id}/complete", json=_to_json(req)
+        )
         return _from_dict(CompleteRunResponse, data)
 
     def fail_run(self, run_id: str, req: FailRunRequest) -> FailRunResponse:
@@ -200,11 +215,17 @@ class DurableClient:
         return _from_dict(FailRunResponse, data)
 
     def schedule_run(self, run_id: str, req: ScheduleRunRequest) -> ScheduleRunResponse:
-        data = self._request("POST", f"/api/v1/runs/{run_id}/schedule", json=_to_json(req))
+        data = self._request(
+            "POST", f"/api/v1/runs/{run_id}/schedule", json=_to_json(req)
+        )
         return _from_dict(ScheduleRunResponse, data)
 
-    def wait_for_event(self, run_id: str, req: WaitForEventRequest) -> WaitForEventResponse:
-        data = self._request("POST", f"/api/v1/runs/{run_id}/wait-for-event", json=_to_json(req))
+    def wait_for_event(
+        self, run_id: str, req: WaitForEventRequest
+    ) -> WaitForEventResponse:
+        data = self._request(
+            "POST", f"/api/v1/runs/{run_id}/wait-for-event", json=_to_json(req)
+        )
         return _from_dict(WaitForEventResponse, data)
 
     # ------------------------------------------------------------------

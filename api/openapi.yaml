@@ -138,6 +138,15 @@ paths:
                   minimum: 1
                   description: Seconds before the claim expires
                   example: 60
+                long_poll_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 30
+                  description: |
+                    Long-poll timeout in seconds. When set, the server holds the connection
+                    open until tasks become available or the timeout elapses. Uses PostgreSQL
+                    LISTEN/NOTIFY for near-instant wake-up when new runs are created.
+                  example: 30
       responses:
         "200":
           description: Tasks claimed (may be empty)

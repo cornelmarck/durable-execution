@@ -114,13 +114,47 @@ func (s *Service) ClaimTasks(ctx context.Context, queueName string, req apiv1.Cl
 		return nil, err
 	}
 
-	rows, err := s.store.ClaimRuns(ctx, dbgen.ClaimRunsParams{
+	claimParams := dbgen.ClaimRunsParams{
 		QueueID:             queue.ID,
 		Limit:               req.Limit,
 		ClaimTimeoutSeconds: req.ClaimTimeout,
-	})
+	}
+
+	rows, err := s.store.ClaimRuns(ctx, claimParams)
 	if err != nil {
 		return nil, err
+	}
+
+	// Long-poll: wait for runs if none are immediately available.
+	if len(rows) == 0 && s.notifier != nil && req.LongPollSeconds != nil && *req.LongPollSeconds > 0 {
+		deadline := time.After(time.Duration(*req.LongPollSeconds) * time.Second)
+		for len(rows) == 0 {
+			// Obtain the signal channel before claiming so we don't miss
+			// notifications that arrive between the claim and the wait.
+			sig := s.notifier.Signal(queueName)
+
+			rows, err = s.store.ClaimRuns(ctx, claimParams)
+			if err != nil {
+				return nil, err
+			}
+			if len(rows) > 0 {
+				break
+			}
+
+			select {
+			case <-sig:
+				continue
+			case <-deadline:
+				// Timeout elapsed; return empty response.
+				rows = nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+
+			if rows == nil {
+				break
+			}
+		}
 	}
 
 	tasks := make([]apiv1.ClaimedTask, 0, len(rows))
@@ -211,4 +245,3 @@ func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cu
 
 	return &apiv1.ListTasksResponse{Tasks: tasks, NextCursor: nextCursor}, nil
 }
-

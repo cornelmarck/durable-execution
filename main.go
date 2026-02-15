@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/cornelmarck/durable-execution/api"
 	"github.com/cornelmarck/durable-execution/internal/db"
@@ -41,7 +41,8 @@ func run(ctx context.Context) error {
 	defer pool.Close()
 
 	store := db.NewStore(pool)
-	svc := service.New(store)
+	listener := db.NewListener(pool)
+	svc := service.New(store, service.WithNotifier(listener))
 	srv := server.NewServer(svc)
 
 	mux := http.NewServeMux()
@@ -53,20 +54,27 @@ func run(ctx context.Context) error {
 		Handler: mux,
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-		httpServer.Shutdown(context.Background())
-	}()
+	g, ctx := errgroup.WithContext(ctx)
 
-	slog.Info("server started", "addr", httpServer.Addr)
-	slog.Info("swagger ui", "url", "http://localhost"+httpServer.Addr+"/docs")
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return err
-	}
-	wg.Wait()
+	g.Go(func() error {
+		return listener.Run(ctx)
+	})
+
+	g.Go(func() error {
+		slog.Info("server started", "addr", httpServer.Addr)
+		slog.Info("swagger ui", "url", "http://localhost"+httpServer.Addr+"/docs")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		return httpServer.Shutdown(context.Background())
+	})
+
+	err = g.Wait()
 	slog.Info("server stopped")
-	return nil
+	return err
 }
