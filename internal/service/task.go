@@ -189,8 +189,11 @@ func (s *Service) ClaimTasks(ctx context.Context, queueName string, req apiv1.Cl
 }
 
 func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cursor *string, limit int32) (*apiv1.ListTasksResponse, error) {
-	if limit <= 0 {
-		limit = defaultListLimit
+	if limit < 0 {
+		return nil, fmt.Errorf("limit must be non-negative: %w", ErrBadRequest)
+	}
+	if limit == 0 {
+		return &apiv1.ListTasksResponse{Tasks: []apiv1.TaskSummary{}}, nil
 	}
 
 	var statusFilter dbgen.NullTaskStatus

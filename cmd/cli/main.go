@@ -128,6 +128,9 @@ func tasksCmd() *cli.Command {
 					&cli.IntFlag{Name: "limit", Value: 50, Usage: "max tasks to return"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if cmd.Int("limit") < 0 {
+						return fmt.Errorf("limit must be non-negative")
+					}
 					var queueName, status, taskName, cursor *string
 					if v := cmd.String("queue"); v != "" {
 						queueName = &v
