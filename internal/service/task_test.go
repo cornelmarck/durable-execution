@@ -80,3 +80,30 @@ func TestClaimTasks_UnmarshalHeaders(t *testing.T) {
 	assert.Equal(t, apiv1.RetryFixed, task.RetryStrategy.Kind)
 	assert.Equal(t, float64(5), task.RetryStrategy.BaseSeconds)
 }
+
+func TestClaimTasks_NilRetryStrategy(t *testing.T) {
+	queueID := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	mock := &StoreMock{
+		GetQueueByNameFunc: func(ctx context.Context, name string) (dbgen.Queue, error) {
+			return dbgen.Queue{ID: queueID}, nil
+		},
+		ClaimRunsFunc: func(ctx context.Context, arg dbgen.ClaimRunsParams) ([]dbgen.ClaimRunsRow, error) {
+			return []dbgen.ClaimRunsRow{
+				{
+					ID:                pgtype.UUID{Bytes: [16]byte{2}, Valid: true},
+					TaskID:            pgtype.UUID{Bytes: [16]byte{3}, Valid: true},
+					Attempt:           1,
+					TaskName:          "my-task",
+					TaskRetryStrategy: nil,
+					TaskMaxAttempts:   1,
+				},
+			}, nil
+		},
+	}
+
+	svc := New(mock)
+	resp, err := svc.ClaimTasks(context.Background(), "test-queue", apiv1.ClaimTasksRequest{Limit: 1, ClaimTimeout: 30})
+	require.NoError(t, err)
+	require.Len(t, resp.Tasks, 1)
+	assert.Nil(t, resp.Tasks[0].RetryStrategy)
+}

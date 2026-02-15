@@ -28,9 +28,16 @@ func (s *Service) SpawnTask(ctx context.Context, queueName string, req apiv1.Spa
 		return nil, err
 	}
 
-	params, _ := json.Marshal(req.Params)
-	headers, _ := json.Marshal(req.Headers)
-	retryStrategy, _ := json.Marshal(req.RetryStrategy)
+	var params, headers, retryStrategy []byte
+	if req.Params != nil {
+		params, _ = json.Marshal(req.Params)
+	}
+	if req.Headers != nil {
+		headers, _ = json.Marshal(req.Headers)
+	}
+	if req.RetryStrategy != nil {
+		retryStrategy, _ = json.Marshal(req.RetryStrategy)
+	}
 
 	maxAttempts := defaultMaxAttempts
 	if req.MaxAttempts != nil {
