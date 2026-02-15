@@ -1,0 +1,16 @@
+# DATABASE_URL="postgres://dev:dev@localhost:5432/durable?sslmode=disable"
+services:
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: durable
+    volumes:
+      - ./internal/db/migrations:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
