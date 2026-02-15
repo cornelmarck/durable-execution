@@ -23,11 +23,12 @@ type Service interface {
 	GetQueueStats(ctx context.Context, queueName string) (*apiv1.QueueStatsResponse, error)
 
 	// Tasks
-	SpawnTask(ctx context.Context, queueName string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error)
+	CreateTask(ctx context.Context, queueName string, req apiv1.CreateTaskRequest) (*apiv1.CreateTaskResponse, error)
 	ClaimTasks(ctx context.Context, queueName string, req apiv1.ClaimTasksRequest) (*apiv1.ClaimTasksResponse, error)
 	ListTasks(ctx context.Context, queueName, status, taskName, cursor *string, limit int32) (*apiv1.ListTasksResponse, error)
 
 	// Runs
+	ListRuns(ctx context.Context, taskID, status, cursor *string, limit int32) (*apiv1.ListRunsResponse, error)
 	CompleteRun(ctx context.Context, runID string, req apiv1.CompleteRunRequest) (*apiv1.CompleteRunResponse, error)
 	FailRun(ctx context.Context, runID string, req apiv1.FailRunRequest) (*apiv1.FailRunResponse, error)
 	ScheduleRun(ctx context.Context, runID string, req apiv1.ScheduleRunRequest) (*apiv1.ScheduleRunResponse, error)

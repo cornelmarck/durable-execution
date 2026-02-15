@@ -17,10 +17,11 @@ func addRoutes(mux *http.ServeMux, svc Service) {
 
 	// Tasks
 	mux.Handle("GET /api/v1/tasks", handleListTasks(svc))
-	mux.Handle("POST /api/v1/queues/{queue_name}/tasks", handleSpawnTask(svc))
+	mux.Handle("POST /api/v1/queues/{queue_name}/tasks", handleCreateTask(svc))
 	mux.Handle("POST /api/v1/queues/{queue_name}/tasks/claim", handleClaimTasks(svc))
 
 	// Runs
+	mux.Handle("GET /api/v1/runs", handleListRuns(svc))
 	mux.Handle("POST /api/v1/runs/{run_id}/complete", handleCompleteRun(svc))
 	mux.Handle("POST /api/v1/runs/{run_id}/fail", handleFailRun(svc))
 	mux.Handle("POST /api/v1/runs/{run_id}/schedule", handleScheduleRun(svc))
@@ -91,16 +92,16 @@ func handleListTasks(svc Service) http.Handler {
 	})
 }
 
-func handleSpawnTask(svc Service) http.Handler {
+func handleCreateTask(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		queueName := r.PathValue("queue_name")
 
-		req, ok := decodeAndValidate[apiv1.SpawnTaskRequest](w, r)
+		req, ok := decodeAndValidate[apiv1.CreateTaskRequest](w, r)
 		if !ok {
 			return
 		}
 
-		resp, err := svc.SpawnTask(r.Context(), queueName, req)
+		resp, err := svc.CreateTask(r.Context(), queueName, req)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -313,6 +314,40 @@ func handleDeleteQueue(svc Service) http.Handler {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func handleListRuns(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+
+		var taskID, status, cursor *string
+		if v := q.Get("task_id"); v != "" {
+			taskID = &v
+		}
+		if v := q.Get("status"); v != "" {
+			status = &v
+		}
+		if v := q.Get("cursor"); v != "" {
+			cursor = &v
+		}
+
+		var limit int32
+		if v := q.Get("limit"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 1 {
+				writeBadRequest(w, "limit must be a positive integer")
+				return
+			}
+			limit = int32(n)
+		}
+
+		resp, err := svc.ListRuns(r.Context(), taskID, status, cursor, limit)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
 	})
 }
 

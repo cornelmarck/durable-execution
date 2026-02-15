@@ -20,6 +20,75 @@ const (
 	defaultExponentialFactor = 2.0
 )
 
+const defaultRunListLimit = int32(50)
+
+func (s *Service) ListRuns(ctx context.Context, taskID, status, cursor *string, limit int32) (*apiv1.ListRunsResponse, error) {
+	if limit < 0 {
+		return nil, fmt.Errorf("limit must be non-negative: %w", ErrBadRequest)
+	}
+	if limit == 0 {
+		return &apiv1.ListRunsResponse{Runs: []apiv1.RunSummary{}}, nil
+	}
+
+	params := dbgen.ListRunsParams{
+		Lim: limit + 1,
+	}
+
+	if taskID != nil {
+		id, err := parseUUID(*taskID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid task_id: %w", ErrBadRequest)
+		}
+		params.TaskID = id
+	}
+
+	if status != nil {
+		params.Status = dbgen.NullRunStatus{RunStatus: dbgen.RunStatus(*status), Valid: true}
+	}
+
+	if cursor != nil {
+		cursorID, err := parseUUID(*cursor)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", ErrBadRequest)
+		}
+		params.CursorID = cursorID
+	}
+
+	rows, err := s.store.ListRuns(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextCursor *string
+	if int32(len(rows)) > limit {
+		rows = rows[:limit]
+		last := rows[limit-1]
+		c := uuidString(last.ID)
+		nextCursor = &c
+	}
+
+	runs := make([]apiv1.RunSummary, 0, len(rows))
+	for _, r := range rows {
+		rs := apiv1.RunSummary{
+			ID:        uuidString(r.ID),
+			TaskID:    uuidString(r.TaskID),
+			Attempt:   r.Attempt,
+			Status:    apiv1.RunStatus(r.Status),
+			CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		}
+		if r.Error.Valid {
+			rs.Error = &r.Error.String
+		}
+		if r.CompletedAt.Valid {
+			s := r.CompletedAt.Time.Format(time.RFC3339)
+			rs.CompletedAt = &s
+		}
+		runs = append(runs, rs)
+	}
+
+	return &apiv1.ListRunsResponse{Runs: runs, NextCursor: nextCursor}, nil
+}
+
 func (s *Service) CompleteRun(ctx context.Context, runID string, req apiv1.CompleteRunRequest) (*apiv1.CompleteRunResponse, error) {
 	id, err := parseUUID(runID)
 	if err != nil {

@@ -110,8 +110,8 @@ func (c *Client) GetQueueStats(ctx context.Context, queue string) (*apiv1.QueueS
 
 // Tasks
 
-func (c *Client) SpawnTask(ctx context.Context, queue string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error) {
-	var resp apiv1.SpawnTaskResponse
+func (c *Client) CreateTask(ctx context.Context, queue string, req apiv1.CreateTaskRequest) (*apiv1.CreateTaskResponse, error) {
+	var resp apiv1.CreateTaskResponse
 	err := c.do(ctx, http.MethodPost, "/api/v1/queues/"+queue+"/tasks", req, &resp)
 	return &resp, err
 }
@@ -151,6 +151,31 @@ func (c *Client) ListTasks(ctx context.Context, queueName, status, taskName, cur
 }
 
 // Runs
+
+func (c *Client) ListRuns(ctx context.Context, taskID, status, cursor *string, limit int32) (*apiv1.ListRunsResponse, error) {
+	v := url.Values{}
+	if taskID != nil {
+		v.Set("task_id", *taskID)
+	}
+	if status != nil {
+		v.Set("status", *status)
+	}
+	if cursor != nil {
+		v.Set("cursor", *cursor)
+	}
+	if limit > 0 {
+		v.Set("limit", fmt.Sprintf("%d", limit))
+	}
+
+	path := "/api/v1/runs"
+	if encoded := v.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	var resp apiv1.ListRunsResponse
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return &resp, err
+}
 
 func (c *Client) CompleteRun(ctx context.Context, runID string, req apiv1.CompleteRunRequest) (*apiv1.CompleteRunResponse, error) {
 	var resp apiv1.CompleteRunResponse

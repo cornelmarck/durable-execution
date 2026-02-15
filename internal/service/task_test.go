@@ -63,7 +63,7 @@ func TestCreateQueue_Conflict(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrConflict)
 }
 
-func TestSpawnTask_QueueNotFound(t *testing.T) {
+func TestCreateTask_QueueNotFound(t *testing.T) {
 	mock := &StoreMock{
 		GetQueueByNameFunc: func(ctx context.Context, name string) (dbgen.Queue, error) {
 			return dbgen.Queue{}, db.ErrNotFound
@@ -71,7 +71,7 @@ func TestSpawnTask_QueueNotFound(t *testing.T) {
 	}
 
 	svc := New(mock)
-	_, err := svc.SpawnTask(context.Background(), "missing-queue", apiv1.SpawnTaskRequest{TaskName: "test"})
+	_, err := svc.CreateTask(context.Background(), "missing-queue", apiv1.CreateTaskRequest{TaskName: "test"})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }

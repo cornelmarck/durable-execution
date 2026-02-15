@@ -21,9 +21,16 @@ type CreateQueueResponse struct {
 	Cleanup   *CleanupPolicy `json:"cleanup,omitempty"`
 }
 
+// QueueSummary is a single queue in a list response.
+type QueueSummary struct {
+	Name      string         `json:"name"`
+	CreatedAt time.Time      `json:"created_at"`
+	Cleanup   *CleanupPolicy `json:"cleanup,omitempty"`
+}
+
 // ListQueuesResponse is the response for GET /queues.
 type ListQueuesResponse struct {
-	Queues []CreateQueueResponse `json:"queues"`
+	Queues []QueueSummary `json:"queues"`
 }
 
 // QueueStatsResponse is the response for GET /queues/{queue_name}/stats.

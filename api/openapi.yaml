@@ -153,11 +153,11 @@ paths:
 
   /queues/{queue_name}/tasks:
     post:
-      operationId: spawnTask
-      summary: Spawn a task
+      operationId: createTask
+      summary: Create a task
       description: |
-        Creates a new task in the queue. Automatically creates the queue if it
-        doesn't exist. Returns the task ID, run ID, and workflow run ID.
+        Creates a new task in the queue. Returns the task ID, run ID, and
+        workflow run ID.
       tags: [Tasks]
       parameters:
         - $ref: "#/components/parameters/QueueName"
@@ -166,10 +166,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SpawnTaskRequest"
+              $ref: "#/components/schemas/CreateTaskRequest"
       responses:
         "201":
-          description: Task spawned
+          description: Task created
           content:
             application/json:
               schema:
@@ -239,6 +239,59 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/ClaimedTask"
+
+  /runs:
+    get:
+      operationId: listRuns
+      summary: List runs
+      description: |
+        Lists runs with optional filters. Useful for inspecting all attempts for
+        a task and their error messages.
+      tags: [Runs]
+      parameters:
+        - name: task_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by task ID
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, claimed, completed, failed, sleeping]
+          description: Filter by run status
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pagination cursor from a previous response
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 50
+          description: Maximum number of runs to return
+      responses:
+        "200":
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs]
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RunSummary"
+                  next_cursor:
+                    type: string
+                    description: Pass as `cursor` to fetch the next page. Absent when there are no more results.
 
   /runs/{run_id}/complete:
     post:
@@ -565,7 +618,7 @@ paths:
       summary: Create a workflow run
       description: |
         Creates a tracking entity for a group of related tasks. Link tasks to
-        a workflow run by passing the workflow_run_id when spawning tasks.
+        a workflow run by passing the workflow_run_id when creating tasks.
       tags: [Workflow Runs]
       requestBody:
         required: true
@@ -689,7 +742,7 @@ components:
         type: string
 
   schemas:
-    SpawnTaskRequest:
+    CreateTaskRequest:
       type: object
       required: [task_name]
       properties:
@@ -772,7 +825,7 @@ components:
           type: string
           example: process_data
         params:
-          description: Task parameters as provided when spawned
+          description: Task parameters as provided when created
         headers:
           type: object
           additionalProperties:
@@ -781,6 +834,29 @@ components:
           $ref: "#/components/schemas/RetryStrategy"
         max_attempts:
           type: integer
+
+    RunSummary:
+      type: object
+      required: [id, task_id, attempt, status, created_at]
+      properties:
+        id:
+          type: string
+        task_id:
+          type: string
+        attempt:
+          type: integer
+        status:
+          type: string
+          enum: [pending, claimed, completed, failed, sleeping]
+        error:
+          type: string
+          description: Error message (present only for failed runs)
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
 
     CleanupPolicy:
       type: object

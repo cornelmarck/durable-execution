@@ -4,7 +4,7 @@ Each step is checkpointed after completion. If the worker crashes or the
 run is retried, already-completed steps are skipped.
 
 Usage:
-    uv run python checkpointed_agent.py spawn
+    uv run python checkpointed_agent.py create
     uv run python checkpointed_agent.py work
 """
 
@@ -19,7 +19,7 @@ from durable.types import (
     CreateQueueRequest,
     FailRunRequest,
     SetCheckpointRequest,
-    SpawnTaskRequest,
+    CreateTaskRequest,
 )
 
 QUEUE = "demo"
@@ -75,10 +75,10 @@ def ensure_queue(client: DurableClient) -> None:
             raise
 
 
-def spawn(client: DurableClient) -> None:
+def create(client: DurableClient) -> None:
     ensure_queue(client)
-    resp = client.spawn_task(QUEUE, SpawnTaskRequest(task_name="demo", max_attempts=3))
-    print(f"spawned task={resp.task_id} run={resp.run_id}")
+    resp = client.create_task(QUEUE, CreateTaskRequest(task_name="demo", max_attempts=3))
+    print(f"created task={resp.task_id} run={resp.run_id}")
 
 
 def work(client: DurableClient) -> None:
@@ -120,11 +120,11 @@ def work(client: DurableClient) -> None:
 if __name__ == "__main__":
     client = DurableClient()
 
-    if len(sys.argv) < 2 or sys.argv[1] not in ("spawn", "work"):
-        print("Usage: python checkpointed_agent.py <spawn|work>")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("create", "work"):
+        print("Usage: python checkpointed_agent.py <create|work>")
         sys.exit(1)
 
-    if sys.argv[1] == "spawn":
-        spawn(client)
+    if sys.argv[1] == "create":
+        create(client)
     else:
         work(client)

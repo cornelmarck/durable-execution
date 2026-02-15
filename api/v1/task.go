@@ -40,8 +40,8 @@ type ClaimedTask struct {
 	MaxAttempts   int32             `json:"max_attempts"`
 }
 
-// SpawnTaskRequest is the body for POST /queues/{queue_name}/tasks.
-type SpawnTaskRequest struct {
+// CreateTaskRequest is the body for POST /queues/{queue_name}/tasks.
+type CreateTaskRequest struct {
 	TaskName         string            `json:"task_name" validate:"required"`
 	Params           json.RawMessage   `json:"params,omitempty"`
 	Headers          map[string]string `json:"headers,omitempty"`
@@ -52,8 +52,8 @@ type SpawnTaskRequest struct {
 	WorkflowRunID    *string           `json:"workflow_run_id,omitempty"`
 }
 
-// SpawnTaskResponse is the response for POST /queues/{queue_name}/tasks.
-type SpawnTaskResponse struct {
+// CreateTaskResponse is the response for POST /queues/{queue_name}/tasks.
+type CreateTaskResponse struct {
 	TaskID        string  `json:"task_id"`
 	RunID         string  `json:"run_id"`
 	WorkflowRunID *string `json:"workflow_run_id,omitempty"`

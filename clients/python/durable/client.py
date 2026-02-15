@@ -23,16 +23,19 @@ from .types import (
     FailRunResponse,
     GetCheckpointResponse,
     ListQueuesResponse,
+    ListRunsResponse,
     ListTasksResponse,
     QueueStatsResponse,
+    QueueSummary,
     RetryStrategy,
     RetryStrategyKind,
+    RunSummary,
     ScheduleRunRequest,
     ScheduleRunResponse,
     SetCheckpointRequest,
     SetCheckpointResponse,
-    SpawnTaskRequest,
-    SpawnTaskResponse,
+    CreateTaskRequest,
+    CreateTaskResponse,
     TaskSummary,
     UpdateWorkflowRunRequest,
     UpdateWorkflowRunResponse,
@@ -93,10 +96,12 @@ def _from_dict(cls: type, data: dict[str, Any]) -> Any:
             kwargs[name] = _from_dict(CleanupPolicy, val)
         elif ft == "list[ClaimedTask]":
             kwargs[name] = [_from_dict(ClaimedTask, t) for t in val]
-        elif ft == "list[CreateQueueResponse]":
-            kwargs[name] = [_from_dict(CreateQueueResponse, t) for t in val]
+        elif ft == "list[QueueSummary]":
+            kwargs[name] = [_from_dict(QueueSummary, t) for t in val]
         elif ft == "list[TaskSummary]":
             kwargs[name] = [_from_dict(TaskSummary, t) for t in val]
+        elif ft == "list[RunSummary]":
+            kwargs[name] = [_from_dict(RunSummary, t) for t in val]
         elif name == "kind" and cls is RetryStrategy:
             kwargs[name] = RetryStrategyKind(val)
         elif name == "status":
@@ -174,11 +179,11 @@ class DurableClient:
     # Tasks
     # ------------------------------------------------------------------
 
-    def spawn_task(self, queue: str, req: SpawnTaskRequest) -> SpawnTaskResponse:
+    def create_task(self, queue: str, req: CreateTaskRequest) -> CreateTaskResponse:
         data = self._request(
             "POST", f"/api/v1/queues/{queue}/tasks", json=_to_json(req)
         )
-        return _from_dict(SpawnTaskResponse, data)
+        return _from_dict(CreateTaskResponse, data)
 
     def claim_tasks(self, queue: str, req: ClaimTasksRequest) -> ClaimTasksResponse:
         timeout = None
@@ -218,6 +223,26 @@ class DurableClient:
     # ------------------------------------------------------------------
     # Runs
     # ------------------------------------------------------------------
+
+    def list_runs(
+        self,
+        *,
+        task_id: str | None = None,
+        status: str | None = None,
+        cursor: str | None = None,
+        limit: int = 0,
+    ) -> ListRunsResponse:
+        params: dict[str, str] = {}
+        if task_id is not None:
+            params["task_id"] = task_id
+        if status is not None:
+            params["status"] = status
+        if cursor is not None:
+            params["cursor"] = cursor
+        if limit > 0:
+            params["limit"] = str(limit)
+        data = self._request("GET", "/api/v1/runs", params=params or None)
+        return _from_dict(ListRunsResponse, data)
 
     def complete_run(self, run_id: str, req: CompleteRunRequest) -> CompleteRunResponse:
         data = self._request(

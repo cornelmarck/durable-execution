@@ -25,6 +25,23 @@ const (
 	WaitResultTimeout  WaitResult = "timeout"
 )
 
+// RunSummary is a single run in a list response.
+type RunSummary struct {
+	ID          string    `json:"id"`
+	TaskID      string    `json:"task_id"`
+	Attempt     int32     `json:"attempt"`
+	Status      RunStatus `json:"status"`
+	Error       *string   `json:"error,omitempty"`
+	CreatedAt   string    `json:"created_at"`
+	CompletedAt *string   `json:"completed_at,omitempty"`
+}
+
+// ListRunsResponse is the response for GET /runs.
+type ListRunsResponse struct {
+	Runs       []RunSummary `json:"runs"`
+	NextCursor *string      `json:"next_cursor,omitempty"`
+}
+
 // CompleteRunRequest is the body for POST /runs/{run_id}/complete.
 type CompleteRunRequest struct {
 	Result json.RawMessage `json:"result,omitempty"`

@@ -19,7 +19,7 @@ const (
 	defaultListLimit   = int32(50)
 )
 
-func (s *Service) SpawnTask(ctx context.Context, queueName string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error) {
+func (s *Service) CreateTask(ctx context.Context, queueName string, req apiv1.CreateTaskRequest) (*apiv1.CreateTaskResponse, error) {
 	queue, err := s.store.GetQueueByName(ctx, queueName)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
@@ -95,7 +95,7 @@ func (s *Service) SpawnTask(ctx context.Context, queueName string, req apiv1.Spa
 		return nil, err
 	}
 
-	resp := &apiv1.SpawnTaskResponse{
+	resp := &apiv1.CreateTaskResponse{
 		TaskID: uuidString(taskID),
 		RunID:  uuidString(runID),
 	}

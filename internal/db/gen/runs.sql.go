@@ -290,6 +290,66 @@ func (q *Queries) GetRunsByTask(ctx context.Context, taskID pgtype.UUID) ([]Run,
 	return items, nil
 }
 
+const listRuns = `-- name: ListRuns :many
+SELECT r.id, r.task_id, r.attempt, r.status, r.error, r.created_at, r.completed_at
+FROM runs r
+WHERE (r.task_id = $1 OR $1 IS NULL)
+  AND (r.status::text = $2 OR $2 IS NULL)
+  AND ($3::uuid IS NULL OR r.id < $3::uuid)
+ORDER BY r.id DESC
+LIMIT $4
+`
+
+type ListRunsParams struct {
+	TaskID   pgtype.UUID   `json:"task_id"`
+	Status   NullRunStatus `json:"status"`
+	CursorID pgtype.UUID   `json:"cursor_id"`
+	Lim      int32         `json:"lim"`
+}
+
+type ListRunsRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	TaskID      pgtype.UUID        `json:"task_id"`
+	Attempt     int32              `json:"attempt"`
+	Status      RunStatus          `json:"status"`
+	Error       pgtype.Text        `json:"error"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+}
+
+func (q *Queries) ListRuns(ctx context.Context, arg ListRunsParams) ([]ListRunsRow, error) {
+	rows, err := q.db.Query(ctx, listRuns,
+		arg.TaskID,
+		arg.Status,
+		arg.CursorID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRunsRow{}
+	for rows.Next() {
+		var i ListRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TaskID,
+			&i.Attempt,
+			&i.Status,
+			&i.Error,
+			&i.CreatedAt,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const scheduleRun = `-- name: ScheduleRun :exec
 UPDATE runs
 SET scheduled_at = $2

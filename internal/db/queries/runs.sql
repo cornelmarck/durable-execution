@@ -67,6 +67,15 @@ SELECT * FROM runs WHERE id = $1;
 -- name: GetRunsByTask :many
 SELECT * FROM runs WHERE task_id = $1 ORDER BY attempt ASC;
 
+-- name: ListRuns :many
+SELECT r.id, r.task_id, r.attempt, r.status, r.error, r.created_at, r.completed_at
+FROM runs r
+WHERE (r.task_id = sqlc.narg('task_id') OR sqlc.narg('task_id') IS NULL)
+  AND (r.status::text = sqlc.narg('status') OR sqlc.narg('status') IS NULL)
+  AND (sqlc.narg('cursor_id')::uuid IS NULL OR r.id < sqlc.narg('cursor_id')::uuid)
+ORDER BY r.id DESC
+LIMIT sqlc.arg('lim');
+
 -- name: ExpireTimedOutWaiters :many
 UPDATE runs
 SET status = 'failed', error = 'wait timeout expired', completed_at = now()

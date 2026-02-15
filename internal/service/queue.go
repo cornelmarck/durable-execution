@@ -63,9 +63,9 @@ func (s *Service) ListQueues(ctx context.Context) (*apiv1.ListQueuesResponse, er
 		return nil, err
 	}
 
-	queues := make([]apiv1.CreateQueueResponse, 0, len(rows))
+	queues := make([]apiv1.QueueSummary, 0, len(rows))
 	for _, q := range rows {
-		queues = append(queues, apiv1.CreateQueueResponse{
+		queues = append(queues, apiv1.QueueSummary{
 			Name:      q.Name,
 			CreatedAt: q.CreatedAt.Time,
 			Cleanup: &apiv1.CleanupPolicy{

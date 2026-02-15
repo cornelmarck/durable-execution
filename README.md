@@ -2,7 +2,7 @@
 
 A minimalistic durable task queue backed by PostgreSQL.
 
-Conceptually based on [Absurd](https://github.com/earendil-works/absurd), but implemented as an HTTP server instead of an embedded library, with additional features like long polling and queue monitoring. The implementation is my own, with help from Claude.
+Conceptually based on [Absurd](https://github.com/earendil-works/absurd), but implemented as an HTTP server instead of an embedded library, with additional features like a CLI and queue monitoring. The implementation is my own, with help from Claude.
 
 Note that this is experimental software. For production workloads, please use an actual message queue such as SQS instead.
 
@@ -40,7 +40,7 @@ docker compose up
 This starts PostgreSQL (with migrations applied automatically) and the server on port 8080.
 
 ```bash
-# Spawn and claim a task
+# Create and claim a task
 curl -s localhost:8080/api/v1/queues/demo/tasks \
   -d '{"task_name":"hello","params":{"msg":"world"}}'
 
@@ -61,14 +61,17 @@ Make sure `$GOPATH/bin` is in your PATH: `export PATH="$PATH:$(go env GOPATH)/bi
 ### Commands
 
 ```
-durablectl queues create --name <queue>    Create a queue
-durablectl queues stats <queue>            Get queue statistics
-durablectl tasks spawn --queue <q> --name <task>   Spawn a task
-durablectl tasks claim --queue <q>         Claim tasks
-durablectl tasks list                      List tasks
-durablectl runs complete <run_id>          Complete a run
-durablectl runs fail <run_id> --error <msg>  Fail a run
-durablectl events emit --name <event>      Emit an event
+durablectl queues create --name <queue>              Create a queue
+durablectl queues list                               List all queues
+durablectl queues delete <queue>                     Delete a queue
+durablectl queues stats <queue>                      Get queue statistics
+durablectl tasks create --queue <q> --name <task>    Create a task
+durablectl tasks claim --queue <q>                   Claim tasks
+durablectl tasks list                                List tasks
+durablectl runs list --task <task_id>                List runs for a task
+durablectl runs complete <run_id>                    Complete a run
+durablectl runs fail <run_id> --error <msg>          Fail a run
+durablectl events emit --name <event>                Emit an event
 ```
 
 ### Example: queue stats

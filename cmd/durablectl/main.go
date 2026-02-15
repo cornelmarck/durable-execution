@@ -160,11 +160,11 @@ func tasksCmd() *cli.Command {
 					&cli.StringFlag{Name: "params", Usage: "task params as JSON"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					req := apiv1.SpawnTaskRequest{TaskName: cmd.String("name")}
+					req := apiv1.CreateTaskRequest{TaskName: cmd.String("name")}
 					if p := cmd.String("params"); p != "" {
 						req.Params = json.RawMessage(p)
 					}
-					resp, err := apiClient.SpawnTask(ctx, cmd.String("queue"), req)
+					resp, err := apiClient.CreateTask(ctx, cmd.String("queue"), req)
 					if err != nil {
 						return err
 					}
@@ -204,6 +204,36 @@ func runsCmd() *cli.Command {
 		Name:  "runs",
 		Usage: "Manage runs",
 		Commands: []*cli.Command{
+			{
+				Name:  "list",
+				Usage: "List runs",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "task", Usage: "filter by task ID"},
+					&cli.StringFlag{Name: "status", Usage: "filter by status (pending, claimed, completed, failed, sleeping)"},
+					&cli.StringFlag{Name: "cursor", Usage: "pagination cursor from previous response"},
+					&cli.IntFlag{Name: "limit", Value: 50, Usage: "max runs to return"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if cmd.Int("limit") < 0 {
+						return fmt.Errorf("limit must be non-negative")
+					}
+					var taskID, status, cursor *string
+					if v := cmd.String("task"); v != "" {
+						taskID = &v
+					}
+					if v := cmd.String("status"); v != "" {
+						status = &v
+					}
+					if v := cmd.String("cursor"); v != "" {
+						cursor = &v
+					}
+					resp, err := apiClient.ListRuns(ctx, taskID, status, cursor, int32(cmd.Int("limit")))
+					if err != nil {
+						return err
+					}
+					return printJSON(resp)
+				},
+			},
 			{
 				Name:      "complete",
 				Usage:     "Complete a run",

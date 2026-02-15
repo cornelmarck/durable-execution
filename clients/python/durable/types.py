@@ -85,8 +85,15 @@ class CreateQueueResponse:
 
 
 @dataclass
+class QueueSummary:
+    name: str
+    created_at: str
+    cleanup: CleanupPolicy | None = None
+
+
+@dataclass
 class ListQueuesResponse:
-    queues: list[CreateQueueResponse] = field(default_factory=list)
+    queues: list[QueueSummary] = field(default_factory=list)
 
 
 @dataclass
@@ -102,7 +109,7 @@ class QueueStatsResponse:
 
 
 @dataclass
-class SpawnTaskRequest:
+class CreateTaskRequest:
     task_name: str
     params: Any | None = None
     headers: dict[str, str] | None = None
@@ -114,7 +121,7 @@ class SpawnTaskRequest:
 
 
 @dataclass
-class SpawnTaskResponse:
+class CreateTaskResponse:
     task_id: str
     run_id: str
     workflow_run_id: str | None = None
@@ -162,6 +169,23 @@ class ListTasksResponse:
 
 
 # --- Run ---
+
+
+@dataclass
+class RunSummary:
+    id: str
+    task_id: str
+    attempt: int
+    status: RunStatus
+    created_at: str
+    error: str | None = None
+    completed_at: str | None = None
+
+
+@dataclass
+class ListRunsResponse:
+    runs: list[RunSummary] = field(default_factory=list)
+    next_cursor: str | None = None
 
 
 @dataclass
