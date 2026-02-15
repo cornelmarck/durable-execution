@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cornelmarck/durable-execution/client"
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
+	client "github.com/cornelmarck/durable-execution/clients/go"
 	"github.com/urfave/cli/v3"
 )
 
