@@ -75,6 +75,37 @@ func tasksCmd() *cli.Command {
 		Usage: "Manage tasks",
 		Commands: []*cli.Command{
 			{
+				Name:  "list",
+				Usage: "List tasks",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "queue", Usage: "filter by queue name"},
+					&cli.StringFlag{Name: "status", Usage: "filter by status (pending, completed, failed, cancelled)"},
+					&cli.StringFlag{Name: "name", Usage: "filter by task name"},
+					&cli.StringFlag{Name: "cursor", Usage: "pagination cursor from previous response"},
+					&cli.IntFlag{Name: "limit", Value: 50, Usage: "max tasks to return"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					var queueName, status, taskName, cursor *string
+					if v := cmd.String("queue"); v != "" {
+						queueName = &v
+					}
+					if v := cmd.String("status"); v != "" {
+						status = &v
+					}
+					if v := cmd.String("name"); v != "" {
+						taskName = &v
+					}
+					if v := cmd.String("cursor"); v != "" {
+						cursor = &v
+					}
+					resp, err := apiClient.ListTasks(ctx, queueName, status, taskName, cursor, int32(cmd.Int("limit")))
+					if err != nil {
+						return err
+					}
+					return printJSON(resp)
+				},
+			},
+			{
 				Name:  "spawn",
 				Usage: "Spawn a task on a queue",
 				Flags: []cli.Flag{

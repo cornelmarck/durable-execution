@@ -80,6 +80,9 @@ var _ Store = &StoreMock{}
 //			GetWorkflowRunFunc: func(ctx context.Context, id pgtype.UUID) (dbgen.WorkflowRun, error) {
 //				panic("mock out the GetWorkflowRun method")
 //			},
+//			ListTasksFunc: func(ctx context.Context, arg dbgen.ListTasksParams) ([]dbgen.ListTasksRow, error) {
+//				panic("mock out the ListTasks method")
+//			},
 //			ScheduleRunFunc: func(ctx context.Context, arg dbgen.ScheduleRunParams) error {
 //				panic("mock out the ScheduleRun method")
 //			},
@@ -164,6 +167,9 @@ type StoreMock struct {
 
 	// GetWorkflowRunFunc mocks the GetWorkflowRun method.
 	GetWorkflowRunFunc func(ctx context.Context, id pgtype.UUID) (dbgen.WorkflowRun, error)
+
+	// ListTasksFunc mocks the ListTasks method.
+	ListTasksFunc func(ctx context.Context, arg dbgen.ListTasksParams) ([]dbgen.ListTasksRow, error)
 
 	// ScheduleRunFunc mocks the ScheduleRun method.
 	ScheduleRunFunc func(ctx context.Context, arg dbgen.ScheduleRunParams) error
@@ -323,6 +329,13 @@ type StoreMock struct {
 			// ID is the id argument value.
 			ID pgtype.UUID
 		}
+		// ListTasks holds details about calls to the ListTasks method.
+		ListTasks []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg dbgen.ListTasksParams
+		}
 		// ScheduleRun holds details about calls to the ScheduleRun method.
 		ScheduleRun []struct {
 			// Ctx is the ctx argument value.
@@ -386,6 +399,7 @@ type StoreMock struct {
 	lockGetRunsByTask         sync.RWMutex
 	lockGetTask               sync.RWMutex
 	lockGetWorkflowRun        sync.RWMutex
+	lockListTasks             sync.RWMutex
 	lockScheduleRun           sync.RWMutex
 	lockSetRunSleeping        sync.RWMutex
 	lockUpdateTaskStatus      sync.RWMutex
@@ -1107,6 +1121,42 @@ func (mock *StoreMock) GetWorkflowRunCalls() []struct {
 	mock.lockGetWorkflowRun.RLock()
 	calls = mock.calls.GetWorkflowRun
 	mock.lockGetWorkflowRun.RUnlock()
+	return calls
+}
+
+// ListTasks calls ListTasksFunc.
+func (mock *StoreMock) ListTasks(ctx context.Context, arg dbgen.ListTasksParams) ([]dbgen.ListTasksRow, error) {
+	if mock.ListTasksFunc == nil {
+		panic("StoreMock.ListTasksFunc: method is nil but Store.ListTasks was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg dbgen.ListTasksParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockListTasks.Lock()
+	mock.calls.ListTasks = append(mock.calls.ListTasks, callInfo)
+	mock.lockListTasks.Unlock()
+	return mock.ListTasksFunc(ctx, arg)
+}
+
+// ListTasksCalls gets all the calls that were made to ListTasks.
+// Check the length with:
+//
+//	len(mockedStore.ListTasksCalls())
+func (mock *StoreMock) ListTasksCalls() []struct {
+	Ctx context.Context
+	Arg dbgen.ListTasksParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg dbgen.ListTasksParams
+	}
+	mock.lockListTasks.RLock()
+	calls = mock.calls.ListTasks
+	mock.lockListTasks.RUnlock()
 	return calls
 }
 

@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: dev
       POSTGRES_DB: durable
     volumes:
-      - ./internal/db/migrations:/docker-entrypoint-initdb.d
+      - ./migrations:/docker-entrypoint-initdb.d
       - pgdata:/var/lib/postgresql/data
 
 volumes:

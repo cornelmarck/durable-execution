@@ -74,6 +74,77 @@ func (q *Queries) GetTask(ctx context.Context, id pgtype.UUID) (Task, error) {
 	return i, err
 }
 
+const listTasks = `-- name: ListTasks :many
+SELECT t.id, t.task_name, t.status, t.max_attempts, t.created_at, t.completed_at,
+       q.name as queue_name
+FROM tasks t
+JOIN queues q ON q.id = t.queue_id
+WHERE (q.name = $1 OR $1 IS NULL)
+  AND (t.status::text = $2 OR $2 IS NULL)
+  AND (t.task_name = $3 OR $3 IS NULL)
+  AND (
+    $4::timestamptz IS NULL
+    OR t.created_at < $4::timestamptz
+    OR (t.created_at = $4::timestamptz AND t.id < $5::uuid)
+  )
+ORDER BY t.created_at DESC, t.id DESC
+LIMIT $6
+`
+
+type ListTasksParams struct {
+	QueueName       pgtype.Text        `json:"queue_name"`
+	Status          NullTaskStatus     `json:"status"`
+	TaskName        pgtype.Text        `json:"task_name"`
+	CursorCreatedAt pgtype.Timestamptz `json:"cursor_created_at"`
+	CursorID        pgtype.UUID        `json:"cursor_id"`
+	Lim             int32              `json:"lim"`
+}
+
+type ListTasksRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	TaskName    string             `json:"task_name"`
+	Status      TaskStatus         `json:"status"`
+	MaxAttempts int32              `json:"max_attempts"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	QueueName   string             `json:"queue_name"`
+}
+
+func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
+	rows, err := q.db.Query(ctx, listTasks,
+		arg.QueueName,
+		arg.Status,
+		arg.TaskName,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTasksRow{}
+	for rows.Next() {
+		var i ListTasksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TaskName,
+			&i.Status,
+			&i.MaxAttempts,
+			&i.CreatedAt,
+			&i.CompletedAt,
+			&i.QueueName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTaskStatus = `-- name: UpdateTaskStatus :exec
 UPDATE tasks
 SET status = $2, completed_at = $3

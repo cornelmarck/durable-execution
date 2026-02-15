@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -13,7 +16,10 @@ import (
 	dbgen "github.com/cornelmarck/durable-execution/internal/db/gen"
 )
 
-const defaultMaxAttempts = int32(1)
+const (
+	defaultMaxAttempts = int32(1)
+	defaultListLimit   = int32(50)
+)
 
 func (s *Service) SpawnTask(ctx context.Context, queueName string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error) {
 	queue, err := s.store.GetQueueByName(ctx, queueName)
@@ -141,4 +147,89 @@ func (s *Service) ClaimTasks(ctx context.Context, queueName string, req apiv1.Cl
 	}
 
 	return &apiv1.ClaimTasksResponse{Tasks: tasks}, nil
+}
+
+func (s *Service) ListTasks(ctx context.Context, queueName, status, taskName, cursor *string, limit int32) (*apiv1.ListTasksResponse, error) {
+	if limit <= 0 {
+		limit = defaultListLimit
+	}
+
+	var statusFilter dbgen.NullTaskStatus
+	if status != nil {
+		statusFilter = dbgen.NullTaskStatus{TaskStatus: dbgen.TaskStatus(*status), Valid: true}
+	}
+
+	params := dbgen.ListTasksParams{
+		QueueName: toText(queueName),
+		Status:    statusFilter,
+		TaskName:  toText(taskName),
+		Lim:       limit + 1, // fetch one extra to detect next page
+	}
+
+	if cursor != nil {
+		cursorCreatedAt, cursorID, err := decodeCursor(*cursor)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", ErrBadRequest)
+		}
+		params.CursorCreatedAt = cursorCreatedAt
+		params.CursorID = cursorID
+	}
+
+	rows, err := s.store.ListTasks(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextCursor *string
+	if int32(len(rows)) > limit {
+		rows = rows[:limit]
+		last := rows[limit-1]
+		c := encodeCursor(last.CreatedAt, last.ID)
+		nextCursor = &c
+	}
+
+	tasks := make([]apiv1.TaskSummary, 0, len(rows))
+	for _, r := range rows {
+		t := apiv1.TaskSummary{
+			ID:          uuidString(r.ID),
+			TaskName:    r.TaskName,
+			Status:      apiv1.TaskStatus(r.Status),
+			QueueName:   r.QueueName,
+			MaxAttempts: r.MaxAttempts,
+			CreatedAt:   r.CreatedAt.Time.Format(time.RFC3339),
+		}
+		if r.CompletedAt.Valid {
+			s := r.CompletedAt.Time.Format(time.RFC3339)
+			t.CompletedAt = &s
+		}
+		tasks = append(tasks, t)
+	}
+
+	return &apiv1.ListTasksResponse{Tasks: tasks, NextCursor: nextCursor}, nil
+}
+
+func encodeCursor(createdAt pgtype.Timestamptz, id pgtype.UUID) string {
+	return base64.StdEncoding.EncodeToString(
+		[]byte(createdAt.Time.Format(time.RFC3339Nano) + "|" + uuidString(id)),
+	)
+}
+
+func decodeCursor(cursor string) (pgtype.Timestamptz, pgtype.UUID, error) {
+	b, err := base64.StdEncoding.DecodeString(cursor)
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, err
+	}
+	parts := strings.SplitN(string(b), "|", 2)
+	if len(parts) != 2 {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, fmt.Errorf("malformed cursor")
+	}
+	t, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, err
+	}
+	id, err := parseUUID(parts[1])
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, err
+	}
+	return pgtype.Timestamptz{Time: t, Valid: true}, id, nil
 }

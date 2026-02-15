@@ -30,6 +30,7 @@ type Querier interface {
 	GetRunsByTask(ctx context.Context, taskID pgtype.UUID) ([]Run, error)
 	GetTask(ctx context.Context, id pgtype.UUID) (Task, error)
 	GetWorkflowRun(ctx context.Context, id pgtype.UUID) (WorkflowRun, error)
+	ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error)
 	ScheduleRun(ctx context.Context, arg ScheduleRunParams) error
 	SetRunSleeping(ctx context.Context, arg SetRunSleepingParams) error
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error

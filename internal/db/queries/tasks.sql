@@ -9,6 +9,22 @@ RETURNING id;
 -- name: GetTask :one
 SELECT * FROM tasks WHERE id = $1;
 
+-- name: ListTasks :many
+SELECT t.id, t.task_name, t.status, t.max_attempts, t.created_at, t.completed_at,
+       q.name as queue_name
+FROM tasks t
+JOIN queues q ON q.id = t.queue_id
+WHERE (q.name = sqlc.narg('queue_name') OR sqlc.narg('queue_name') IS NULL)
+  AND (t.status::text = sqlc.narg('status') OR sqlc.narg('status') IS NULL)
+  AND (t.task_name = sqlc.narg('task_name') OR sqlc.narg('task_name') IS NULL)
+  AND (
+    sqlc.narg('cursor_created_at')::timestamptz IS NULL
+    OR t.created_at < sqlc.narg('cursor_created_at')::timestamptz
+    OR (t.created_at = sqlc.narg('cursor_created_at')::timestamptz AND t.id < sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY t.created_at DESC, t.id DESC
+LIMIT sqlc.arg('lim');
+
 -- name: UpdateTaskStatus :exec
 UPDATE tasks
 SET status = $2, completed_at = $3

@@ -22,6 +22,7 @@ type Service interface {
 	// Tasks
 	SpawnTask(ctx context.Context, queueName string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error)
 	ClaimTasks(ctx context.Context, queueName string, req apiv1.ClaimTasksRequest) (*apiv1.ClaimTasksResponse, error)
+	ListTasks(ctx context.Context, queueName, status, taskName, cursor *string, limit int32) (*apiv1.ListTasksResponse, error)
 
 	// Runs
 	CompleteRun(ctx context.Context, runID string, req apiv1.CompleteRunRequest) (*apiv1.CompleteRunResponse, error)

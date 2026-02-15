@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
 )
@@ -12,6 +13,7 @@ func addRoutes(mux *http.ServeMux, svc Service) {
 	mux.Handle("POST /api/v1/queues", handleCreateQueue(svc))
 
 	// Tasks
+	mux.Handle("GET /api/v1/tasks", handleListTasks(svc))
 	mux.Handle("POST /api/v1/queues/{queue_name}/tasks", handleSpawnTask(svc))
 	mux.Handle("POST /api/v1/queues/{queue_name}/tasks/claim", handleClaimTasks(svc))
 
@@ -46,6 +48,43 @@ func handleCreateQueue(svc Service) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
+	})
+}
+
+func handleListTasks(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+
+		var queueName, status, taskName, cursor *string
+		if v := q.Get("queue_name"); v != "" {
+			queueName = &v
+		}
+		if v := q.Get("status"); v != "" {
+			status = &v
+		}
+		if v := q.Get("task_name"); v != "" {
+			taskName = &v
+		}
+		if v := q.Get("cursor"); v != "" {
+			cursor = &v
+		}
+
+		var limit int32
+		if v := q.Get("limit"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 1 {
+				writeBadRequest(w, "limit must be a positive integer")
+				return
+			}
+			limit = int32(n)
+		}
+
+		resp, err := svc.ListTasks(r.Context(), queueName, status, taskName, cursor, limit)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
 	})
 }
 

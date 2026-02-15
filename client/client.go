@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
@@ -102,6 +103,34 @@ func (c *Client) SpawnTask(ctx context.Context, queue string, req apiv1.SpawnTas
 func (c *Client) ClaimTasks(ctx context.Context, queue string, req apiv1.ClaimTasksRequest) (*apiv1.ClaimTasksResponse, error) {
 	var resp apiv1.ClaimTasksResponse
 	err := c.do(ctx, http.MethodPost, "/api/v1/queues/"+queue+"/tasks/claim", req, &resp)
+	return &resp, err
+}
+
+func (c *Client) ListTasks(ctx context.Context, queueName, status, taskName, cursor *string, limit int32) (*apiv1.ListTasksResponse, error) {
+	v := url.Values{}
+	if queueName != nil {
+		v.Set("queue_name", *queueName)
+	}
+	if status != nil {
+		v.Set("status", *status)
+	}
+	if taskName != nil {
+		v.Set("task_name", *taskName)
+	}
+	if cursor != nil {
+		v.Set("cursor", *cursor)
+	}
+	if limit > 0 {
+		v.Set("limit", fmt.Sprintf("%d", limit))
+	}
+
+	path := "/api/v1/tasks"
+	if encoded := v.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	var resp apiv1.ListTasksResponse
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
 	return &resp, err
 }
 
