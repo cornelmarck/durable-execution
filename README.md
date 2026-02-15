@@ -1,6 +1,6 @@
 # Durable Execution
 
-A durable task queue implemented as an HTTP server, backed by PostgreSQL.
+A minimalistic durable task queue backed by PostgreSQL.
 
 Conceptually based on [Absurd](https://github.com/earendil-works/absurd), but implemented as an HTTP server instead of an embedded library, with additional features like long polling and queue monitoring. The implementation is my own, with help from Claude.
 
@@ -34,13 +34,13 @@ See [`api/openapi.yaml`](api/openapi.yaml) for the full specification.
 ## Quick start
 
 ```bash
-# Start PostgreSQL and run migrations
-export DATABASE_URL="postgres://localhost:5432/durable?sslmode=disable"
+docker compose up
+```
 
-# Run the server
-go run .
+This starts PostgreSQL (with migrations applied automatically) and the server on port 8080.
 
-# In another terminal — spawn and claim a task
+```bash
+# Spawn and claim a task
 curl -s localhost:8080/api/v1/queues/demo/tasks \
   -d '{"task_name":"hello","params":{"msg":"world"}}'
 

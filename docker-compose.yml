@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: durable
+    volumes:
+      - ./internal/db/migrations:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d durable"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: "postgres://dev:dev@postgres:5432/durable?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
