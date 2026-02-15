@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	dbgen "github.com/cornelmarck/durable-execution/internal/db/gen"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,6 +61,45 @@ func TestListener(t *testing.T) {
 			// expected
 		case <-time.After(3 * time.Second):
 			t.Fatal("expected notification for listen-q2")
+		}
+	})
+
+	t.Run("notifies when sleeping run is woken", func(t *testing.T) {
+		s := newTestStore(t)
+		ctx := context.Background()
+
+		q := createTestQueue(t, s, "wake-notify-q")
+		taskID := createTestTask(t, s, q.ID, "wake-notify-task")
+		run := createTestRun(t, s, taskID)
+
+		// Put the run to sleep.
+		err := s.SetRunSleeping(ctx, dbgen.SetRunSleepingParams{
+			ID:               run.ID,
+			WaitingEventName: validText("approval"),
+			WaitingStepName:  validText("wait-approval"),
+			WaitingTimeoutAt: validTimestamptz(time.Now().Add(10 * time.Minute)),
+		})
+		require.NoError(t, err)
+
+		listener := NewListener(testPool)
+		listenCtx, listenCancel := context.WithCancel(ctx)
+		defer listenCancel()
+		go listener.Run(listenCtx)
+
+		time.Sleep(100 * time.Millisecond)
+
+		sig := listener.Signal("wake-notify-q")
+
+		// Wake the run — this UPDATEs status to 'pending', which should trigger a notification.
+		woken, err := s.WakeRunsByEvent(ctx, validText("approval"))
+		require.NoError(t, err)
+		require.Len(t, woken, 1)
+
+		select {
+		case <-sig:
+			// expected — notification received
+		case <-time.After(3 * time.Second):
+			t.Fatal("expected notification after waking sleeping run")
 		}
 	})
 
