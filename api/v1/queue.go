@@ -20,3 +20,12 @@ type CreateQueueResponse struct {
 	CreatedAt time.Time      `json:"created_at"`
 	Cleanup   *CleanupPolicy `json:"cleanup,omitempty"`
 }
+
+// QueueStatsResponse is the response for GET /queues/{queue_name}/stats.
+type QueueStatsResponse struct {
+	QueueName               string   `json:"queue_name"`
+	PendingRuns             int64    `json:"pending_runs"`
+	ClaimedRuns             int64    `json:"claimed_runs"`
+	CompletedRuns           int64    `json:"completed_runs"`
+	OldestPendingAgeSeconds *float64 `json:"oldest_pending_run_age_seconds"`
+}

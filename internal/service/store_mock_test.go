@@ -68,6 +68,9 @@ var _ Store = &StoreMock{}
 //			GetQueueByNameFunc: func(ctx context.Context, name string) (dbgen.Queue, error) {
 //				panic("mock out the GetQueueByName method")
 //			},
+//			GetQueueStatsFunc: func(ctx context.Context, queueID pgtype.UUID) (dbgen.GetQueueStatsRow, error) {
+//				panic("mock out the GetQueueStats method")
+//			},
 //			GetRunFunc: func(ctx context.Context, id pgtype.UUID) (dbgen.Run, error) {
 //				panic("mock out the GetRun method")
 //			},
@@ -155,6 +158,9 @@ type StoreMock struct {
 
 	// GetQueueByNameFunc mocks the GetQueueByName method.
 	GetQueueByNameFunc func(ctx context.Context, name string) (dbgen.Queue, error)
+
+	// GetQueueStatsFunc mocks the GetQueueStats method.
+	GetQueueStatsFunc func(ctx context.Context, queueID pgtype.UUID) (dbgen.GetQueueStatsRow, error)
 
 	// GetRunFunc mocks the GetRun method.
 	GetRunFunc func(ctx context.Context, id pgtype.UUID) (dbgen.Run, error)
@@ -301,6 +307,13 @@ type StoreMock struct {
 			// Name is the name argument value.
 			Name string
 		}
+		// GetQueueStats holds details about calls to the GetQueueStats method.
+		GetQueueStats []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// QueueID is the queueID argument value.
+			QueueID pgtype.UUID
+		}
 		// GetRun holds details about calls to the GetRun method.
 		GetRun []struct {
 			// Ctx is the ctx argument value.
@@ -395,6 +408,7 @@ type StoreMock struct {
 	lockGetCheckpoint         sync.RWMutex
 	lockGetEventByName        sync.RWMutex
 	lockGetQueueByName        sync.RWMutex
+	lockGetQueueStats         sync.RWMutex
 	lockGetRun                sync.RWMutex
 	lockGetRunsByTask         sync.RWMutex
 	lockGetTask               sync.RWMutex
@@ -977,6 +991,42 @@ func (mock *StoreMock) GetQueueByNameCalls() []struct {
 	mock.lockGetQueueByName.RLock()
 	calls = mock.calls.GetQueueByName
 	mock.lockGetQueueByName.RUnlock()
+	return calls
+}
+
+// GetQueueStats calls GetQueueStatsFunc.
+func (mock *StoreMock) GetQueueStats(ctx context.Context, queueID pgtype.UUID) (dbgen.GetQueueStatsRow, error) {
+	if mock.GetQueueStatsFunc == nil {
+		panic("StoreMock.GetQueueStatsFunc: method is nil but Store.GetQueueStats was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		QueueID pgtype.UUID
+	}{
+		Ctx:     ctx,
+		QueueID: queueID,
+	}
+	mock.lockGetQueueStats.Lock()
+	mock.calls.GetQueueStats = append(mock.calls.GetQueueStats, callInfo)
+	mock.lockGetQueueStats.Unlock()
+	return mock.GetQueueStatsFunc(ctx, queueID)
+}
+
+// GetQueueStatsCalls gets all the calls that were made to GetQueueStats.
+// Check the length with:
+//
+//	len(mockedStore.GetQueueStatsCalls())
+func (mock *StoreMock) GetQueueStatsCalls() []struct {
+	Ctx     context.Context
+	QueueID pgtype.UUID
+} {
+	var calls []struct {
+		Ctx     context.Context
+		QueueID pgtype.UUID
+	}
+	mock.lockGetQueueStats.RLock()
+	calls = mock.calls.GetQueueStats
+	mock.lockGetQueueStats.RUnlock()
 	return calls
 }
 

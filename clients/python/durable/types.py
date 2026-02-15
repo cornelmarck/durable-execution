@@ -84,6 +84,15 @@ class CreateQueueResponse:
     cleanup: CleanupPolicy | None = None
 
 
+@dataclass
+class QueueStatsResponse:
+    queue_name: str
+    pending_runs: int
+    claimed_runs: int
+    completed_runs: int
+    oldest_pending_run_age_seconds: float | None = None
+
+
 # --- Task ---
 
 

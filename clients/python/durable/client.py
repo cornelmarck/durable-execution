@@ -23,6 +23,7 @@ from .types import (
     FailRunResponse,
     GetCheckpointResponse,
     ListTasksResponse,
+    QueueStatsResponse,
     RetryStrategy,
     RetryStrategyKind,
     ScheduleRunRequest,
@@ -154,6 +155,10 @@ class DurableClient:
     def create_queue(self, req: CreateQueueRequest) -> CreateQueueResponse:
         data = self._request("POST", "/api/v1/queues", json=_to_json(req))
         return _from_dict(CreateQueueResponse, data)
+
+    def get_queue_stats(self, queue: str) -> QueueStatsResponse:
+        data = self._request("GET", f"/api/v1/queues/{queue}/stats")
+        return _from_dict(QueueStatsResponse, data)
 
     # ------------------------------------------------------------------
     # Tasks

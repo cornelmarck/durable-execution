@@ -26,6 +26,7 @@ type Querier interface {
 	GetCheckpoint(ctx context.Context, arg GetCheckpointParams) (Checkpoint, error)
 	GetEventByName(ctx context.Context, eventName string) (Event, error)
 	GetQueueByName(ctx context.Context, name string) (Queue, error)
+	GetQueueStats(ctx context.Context, queueID pgtype.UUID) (GetQueueStatsRow, error)
 	GetRun(ctx context.Context, id pgtype.UUID) (Run, error)
 	GetRunsByTask(ctx context.Context, taskID pgtype.UUID) ([]Run, error)
 	GetTask(ctx context.Context, id pgtype.UUID) (Task, error)

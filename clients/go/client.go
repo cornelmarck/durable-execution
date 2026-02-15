@@ -92,6 +92,12 @@ func (c *Client) CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest) 
 	return &resp, err
 }
 
+func (c *Client) GetQueueStats(ctx context.Context, queue string) (*apiv1.QueueStatsResponse, error) {
+	var resp apiv1.QueueStatsResponse
+	err := c.do(ctx, http.MethodGet, "/api/v1/queues/"+queue+"/stats", nil, &resp)
+	return &resp, err
+}
+
 // Tasks
 
 func (c *Client) SpawnTask(ctx context.Context, queue string, req apiv1.SpawnTaskRequest) (*apiv1.SpawnTaskResponse, error) {

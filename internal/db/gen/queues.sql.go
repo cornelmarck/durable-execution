@@ -7,6 +7,8 @@ package dbgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createQueue = `-- name: CreateQueue :one
@@ -47,6 +49,36 @@ func (q *Queries) GetQueueByName(ctx context.Context, name string) (Queue, error
 		&i.TaskTtlSeconds,
 		&i.EventTtlSeconds,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getQueueStats = `-- name: GetQueueStats :one
+SELECT
+    COUNT(*) FILTER (WHERE r.status = 'pending') AS pending_runs,
+    COUNT(*) FILTER (WHERE r.status = 'claimed') AS claimed_runs,
+    COUNT(*) FILTER (WHERE r.status = 'completed') AS completed_runs,
+    EXTRACT(EPOCH FROM (now() - MIN(r.created_at) FILTER (WHERE r.status = 'pending'))) AS oldest_pending_age_seconds
+FROM runs r
+JOIN tasks t ON t.id = r.task_id
+WHERE t.queue_id = $1
+`
+
+type GetQueueStatsRow struct {
+	PendingRuns             int64          `json:"pending_runs"`
+	ClaimedRuns             int64          `json:"claimed_runs"`
+	CompletedRuns           int64          `json:"completed_runs"`
+	OldestPendingAgeSeconds pgtype.Numeric `json:"oldest_pending_age_seconds"`
+}
+
+func (q *Queries) GetQueueStats(ctx context.Context, queueID pgtype.UUID) (GetQueueStatsRow, error) {
+	row := q.db.QueryRow(ctx, getQueueStats, queueID)
+	var i GetQueueStatsRow
+	err := row.Scan(
+		&i.PendingRuns,
+		&i.ClaimedRuns,
+		&i.CompletedRuns,
+		&i.OldestPendingAgeSeconds,
 	)
 	return i, err
 }

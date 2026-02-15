@@ -11,6 +11,7 @@ import (
 func addRoutes(mux *http.ServeMux, svc Service) {
 	// Queues
 	mux.Handle("POST /api/v1/queues", handleCreateQueue(svc))
+	mux.Handle("GET /api/v1/queues/{queue_name}/stats", handleGetQueueStats(svc))
 
 	// Tasks
 	mux.Handle("GET /api/v1/tasks", handleListTasks(svc))
@@ -282,6 +283,19 @@ func handleUpdateWorkflowRun(svc Service) http.Handler {
 		}
 
 		resp, err := svc.UpdateWorkflowRun(r.Context(), workflowRunID, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	})
+}
+
+func handleGetQueueStats(svc Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queueName := r.PathValue("queue_name")
+
+		resp, err := svc.GetQueueStats(r.Context(), queueName)
 		if err != nil {
 			writeError(w, err)
 			return

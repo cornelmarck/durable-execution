@@ -45,3 +45,31 @@ func (s *Service) CreateQueue(ctx context.Context, req apiv1.CreateQueueRequest)
 		},
 	}, nil
 }
+
+func (s *Service) GetQueueStats(ctx context.Context, queueName string) (*apiv1.QueueStatsResponse, error) {
+	q, err := s.store.GetQueueByName(ctx, queueName)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := s.store.GetQueueStats(ctx, q.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &apiv1.QueueStatsResponse{
+		QueueName:     queueName,
+		PendingRuns:   stats.PendingRuns,
+		ClaimedRuns:   stats.ClaimedRuns,
+		CompletedRuns: stats.CompletedRuns,
+	}
+
+	if stats.OldestPendingAgeSeconds.Valid {
+		f, _ := stats.OldestPendingAgeSeconds.Float64Value()
+		if f.Valid {
+			resp.OldestPendingAgeSeconds = &f.Float64
+		}
+	}
+
+	return resp, nil
+}

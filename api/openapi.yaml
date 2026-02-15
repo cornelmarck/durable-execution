@@ -72,6 +72,42 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /queues/{queue_name}/stats:
+    get:
+      operationId: getQueueStats
+      summary: Get queue statistics
+      description: |
+        Returns counts of runs by status and the age of the oldest pending run.
+        Useful for monitoring consumer lag and alerting on queue buildup.
+      tags: [Queues]
+      parameters:
+        - $ref: "#/components/parameters/QueueName"
+      responses:
+        "200":
+          description: Queue stats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queue_name, pending_runs, claimed_runs, completed_runs]
+                properties:
+                  queue_name:
+                    type: string
+                  pending_runs:
+                    type: integer
+                  claimed_runs:
+                    type: integer
+                  completed_runs:
+                    type: integer
+                  oldest_pending_run_age_seconds:
+                    type: number
+                    nullable: true
+                    description: |
+                      Seconds since the oldest pending run was created. Null when
+                      there are no pending runs. This is the key consumer lag metric.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /queues/{queue_name}/tasks:
     post:
       operationId: spawnTask

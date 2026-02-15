@@ -65,6 +65,22 @@ func queuesCmd() *cli.Command {
 					return printJSON(resp)
 				},
 			},
+			{
+				Name:      "stats",
+				Usage:     "Get queue statistics",
+				ArgsUsage: "<queue_name>",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					name := cmd.Args().First()
+					if name == "" {
+						return fmt.Errorf("queue_name is required")
+					}
+					resp, err := apiClient.GetQueueStats(ctx, name)
+					if err != nil {
+						return err
+					}
+					return printJSON(resp)
+				},
+			},
 		},
 	}
 }
