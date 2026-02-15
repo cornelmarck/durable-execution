@@ -7,8 +7,8 @@ CREATE TYPE workflow_run_status AS ENUM ('pending', 'running', 'completed', 'fai
 CREATE TABLE IF NOT EXISTS queues (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name             TEXT UNIQUE NOT NULL,
-    task_ttl_seconds INT  NOT NULL DEFAULT 259200,
-    event_ttl_seconds INT NOT NULL DEFAULT 259200,
+    task_ttl_seconds INT  NOT NULL,
+    event_ttl_seconds INT NOT NULL,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
