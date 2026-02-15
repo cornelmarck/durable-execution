@@ -158,11 +158,26 @@ func tasksCmd() *cli.Command {
 					&cli.StringFlag{Name: "queue", Required: true, Usage: "queue name"},
 					&cli.StringFlag{Name: "name", Required: true, Usage: "task name"},
 					&cli.StringFlag{Name: "params", Usage: "task params as JSON"},
+					&cli.IntFlag{Name: "max-attempts", Value: 1, Usage: "maximum number of attempts"},
+					&cli.FloatFlag{Name: "retry-delay", Value: 0, Usage: "base retry delay in seconds"},
+					&cli.StringFlag{Name: "retry-strategy", Value: "fixed", Usage: "retry strategy: fixed or exponential"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					req := apiv1.CreateTaskRequest{TaskName: cmd.String("name")}
 					if p := cmd.String("params"); p != "" {
 						req.Params = json.RawMessage(p)
+					}
+					if n := int32(cmd.Int("max-attempts")); n > 1 {
+						req.MaxAttempts = &n
+						delay := cmd.Float("retry-delay")
+						if delay <= 0 {
+							delay = 1
+						}
+						rs := &apiv1.RetryStrategy{
+							Kind:        apiv1.RetryStrategyKind(cmd.String("retry-strategy")),
+							BaseSeconds: delay,
+						}
+						req.RetryStrategy = rs
 					}
 					resp, err := apiClient.CreateTask(ctx, cmd.String("queue"), req)
 					if err != nil {
