@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
+	db "github.com/cornelmarck/durable-execution/internal/db"
+	"github.com/cornelmarck/durable-execution/internal/service"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -53,22 +55,26 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-// writeError maps an error to an HTTP response. If the error is an *apiv1.Error,
-// its status and code are used; otherwise a 500 is returned.
+// writeError maps a service error to an HTTP response. Domain errors are mapped
+// to appropriate status codes; everything else is logged and returned as 500.
 func writeError(w http.ResponseWriter, err error) {
-	var apiErr *apiv1.Error
-	if errors.As(err, &apiErr) {
-		writeJSON(w, apiErr.Status, apiv1.ErrorResponse{
-			Error: apiErr.Message,
-			Code:  apiErr.Code,
-		})
-		return
+	switch {
+	case errors.Is(err, service.ErrBadRequest):
+		writeJSON(w, http.StatusBadRequest, apiv1.ErrorResponse{Error: err.Error(), Code: "VALIDATION_ERROR"})
+	case errors.Is(err, db.ErrNotFound):
+		writeJSON(w, http.StatusNotFound, apiv1.ErrorResponse{Error: err.Error(), Code: "NOT_FOUND"})
+	case errors.Is(err, db.ErrConflict):
+		writeJSON(w, http.StatusConflict, apiv1.ErrorResponse{Error: err.Error(), Code: "CONFLICT"})
+	default:
+		slog.Error("internal error", "error", err)
+		writeJSON(w, http.StatusInternalServerError, apiv1.ErrorResponse{Error: "internal error", Code: "INTERNAL_ERROR"})
 	}
-	slog.Error("internal error", "error", err)
-	writeJSON(w, http.StatusInternalServerError, apiv1.ErrorResponse{
-		Error: "internal error",
-		Code:  "INTERNAL_ERROR",
-	})
+}
+
+// writeBadRequest writes a 400 response for request-level validation errors
+// (malformed JSON, missing fields) that originate in the handler, not the service.
+func writeBadRequest(w http.ResponseWriter, msg string) {
+	writeJSON(w, http.StatusBadRequest, apiv1.ErrorResponse{Error: msg, Code: "VALIDATION_ERROR"})
 }
 
 var validate = validator.New()
@@ -78,11 +84,11 @@ var validate = validator.New()
 func decodeAndValidate[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
 	var v T
 	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
-		writeError(w, apiv1.ErrBadRequest("invalid JSON: "+err.Error()))
+		writeBadRequest(w, "invalid JSON: "+err.Error())
 		return v, false
 	}
 	if err := validate.Struct(v); err != nil {
-		writeError(w, apiv1.ErrBadRequest(err.Error()))
+		writeBadRequest(w, err.Error())
 		return v, false
 	}
 	return v, true

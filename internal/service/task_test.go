@@ -1,0 +1,82 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apiv1 "github.com/cornelmarck/durable-execution/api/v1"
+	db "github.com/cornelmarck/durable-execution/internal/db"
+	dbgen "github.com/cornelmarck/durable-execution/internal/db/gen"
+)
+
+func TestCreateQueue_Conflict(t *testing.T) {
+	mock := &StoreMock{
+		CreateQueueFunc: func(ctx context.Context, arg dbgen.CreateQueueParams) (dbgen.Queue, error) {
+			return dbgen.Queue{}, db.ErrConflict
+		},
+	}
+
+	svc := New(mock)
+	_, err := svc.CreateQueue(context.Background(), apiv1.CreateQueueRequest{Name: "test-queue"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, db.ErrConflict)
+}
+
+func TestSpawnTask_QueueNotFound(t *testing.T) {
+	mock := &StoreMock{
+		GetQueueByNameFunc: func(ctx context.Context, name string) (dbgen.Queue, error) {
+			return dbgen.Queue{}, db.ErrNotFound
+		},
+	}
+
+	svc := New(mock)
+	_, err := svc.SpawnTask(context.Background(), "missing-queue", apiv1.SpawnTaskRequest{TaskName: "test"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func TestClaimTasks_UnmarshalHeaders(t *testing.T) {
+	headers := map[string]string{"X-Custom": "value"}
+	headersJSON, _ := json.Marshal(headers)
+
+	retryStrategy := apiv1.RetryStrategy{Kind: apiv1.RetryFixed, BaseSeconds: 5}
+	retryJSON, _ := json.Marshal(retryStrategy)
+
+	queueID := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	mock := &StoreMock{
+		GetQueueByNameFunc: func(ctx context.Context, name string) (dbgen.Queue, error) {
+			return dbgen.Queue{ID: queueID}, nil
+		},
+		ClaimRunsFunc: func(ctx context.Context, arg dbgen.ClaimRunsParams) ([]dbgen.ClaimRunsRow, error) {
+			return []dbgen.ClaimRunsRow{
+				{
+					ID:                pgtype.UUID{Bytes: [16]byte{2}, Valid: true},
+					TaskID:            pgtype.UUID{Bytes: [16]byte{3}, Valid: true},
+					Attempt:           1,
+					TaskName:          "my-task",
+					TaskParams:        []byte(`{"key":"val"}`),
+					TaskHeaders:       headersJSON,
+					TaskRetryStrategy: retryJSON,
+					TaskMaxAttempts:   3,
+				},
+			}, nil
+		},
+	}
+
+	svc := New(mock)
+	resp, err := svc.ClaimTasks(context.Background(), "test-queue", apiv1.ClaimTasksRequest{Limit: 10, ClaimTimeout: 30})
+	require.NoError(t, err)
+	require.Len(t, resp.Tasks, 1)
+
+	task := resp.Tasks[0]
+	assert.Equal(t, "my-task", task.TaskName)
+	assert.Equal(t, map[string]string{"X-Custom": "value"}, task.Headers)
+	require.NotNil(t, task.RetryStrategy)
+	assert.Equal(t, apiv1.RetryFixed, task.RetryStrategy.Kind)
+	assert.Equal(t, float64(5), task.RetryStrategy.BaseSeconds)
+}
