@@ -149,8 +149,8 @@ func tasksCmd() *cli.Command {
 				},
 			},
 			{
-				Name:  "spawn",
-				Usage: "Spawn a task on a queue",
+				Name:  "create",
+				Usage: "Create a task on a queue",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "queue", Required: true, Usage: "queue name"},
 					&cli.StringFlag{Name: "name", Required: true, Usage: "task name"},
@@ -175,12 +175,17 @@ func tasksCmd() *cli.Command {
 					&cli.StringFlag{Name: "queue", Required: true, Usage: "queue name"},
 					&cli.IntFlag{Name: "limit", Value: 1, Usage: "max tasks to claim"},
 					&cli.IntFlag{Name: "timeout", Value: 30, Usage: "claim timeout in seconds"},
+					&cli.IntFlag{Name: "poll", Value: 0, Usage: "long poll seconds (0 to disable)"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					resp, err := apiClient.ClaimTasks(ctx, cmd.String("queue"), apiv1.ClaimTasksRequest{
+					req := apiv1.ClaimTasksRequest{
 						Limit:        int32(cmd.Int("limit")),
 						ClaimTimeout: int32(cmd.Int("timeout")),
-					})
+					}
+					if p := int32(cmd.Int("poll")); p > 0 {
+						req.LongPollSeconds = &p
+					}
+					resp, err := apiClient.ClaimTasks(ctx, cmd.String("queue"), req)
 					if err != nil {
 						return err
 					}
