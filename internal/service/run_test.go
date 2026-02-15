@@ -15,6 +15,41 @@ import (
 	dbgen "github.com/cornelmarck/durable-execution/internal/db/gen"
 )
 
+func TestCompleteRun_UpdatesTaskStatus(t *testing.T) {
+	taskID := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	runID := pgtype.UUID{Bytes: [16]byte{2}, Valid: true}
+
+	mock := &StoreMock{
+		GetRunFunc: func(ctx context.Context, id pgtype.UUID) (dbgen.Run, error) {
+			return dbgen.Run{
+				ID:     runID,
+				TaskID: taskID,
+			}, nil
+		},
+		CompleteRunFunc: func(ctx context.Context, arg dbgen.CompleteRunParams) error {
+			return nil
+		},
+		UpdateTaskStatusFunc: func(ctx context.Context, arg dbgen.UpdateTaskStatusParams) error {
+			assert.Equal(t, taskID, arg.ID)
+			assert.Equal(t, dbgen.TaskStatusCompleted, arg.Status)
+			assert.True(t, arg.CompletedAt.Valid)
+			return nil
+		},
+	}
+	mock.ExecTxFunc = func(ctx context.Context, fn func(dbgen.Querier) error) error {
+		return fn(mock)
+	}
+
+	svc := New(mock)
+	resp, err := svc.CompleteRun(context.Background(), "00000002-0000-0000-0000-000000000000", apiv1.CompleteRunRequest{
+		Result: json.RawMessage(`{"output":"done"}`),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, apiv1.RunStatusCompleted, resp.Status)
+	assert.Equal(t, 1, len(mock.UpdateTaskStatusCalls()))
+	assert.Equal(t, 1, len(mock.CompleteRunCalls()))
+}
+
 func TestRetryDelay(t *testing.T) {
 	float64Ptr := func(f float64) *float64 { return &f }
 

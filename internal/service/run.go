@@ -26,10 +26,27 @@ func (s *Service) CompleteRun(ctx context.Context, runID string, req apiv1.Compl
 		return nil, fmt.Errorf("invalid run_id: %w", ErrBadRequest)
 	}
 
-	if err := s.store.CompleteRun(ctx, dbgen.CompleteRunParams{
-		ID:     id,
-		Result: req.Result,
-	}); err != nil {
+	run, err := s.store.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.store.ExecTx(ctx, func(q dbgen.Querier) error {
+		if txErr := q.CompleteRun(ctx, dbgen.CompleteRunParams{
+			ID:     id,
+			Result: req.Result,
+		}); txErr != nil {
+			return txErr
+		}
+
+		now := time.Now()
+		return q.UpdateTaskStatus(ctx, dbgen.UpdateTaskStatusParams{
+			ID:          run.TaskID,
+			Status:      dbgen.TaskStatusCompleted,
+			CompletedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		})
+	})
+	if err != nil {
 		return nil, err
 	}
 
