@@ -10,7 +10,7 @@ build_and_push() {
     local image="${REPO}/${name}:${TAG}"
 
     echo "Building ${image}..."
-    docker build -t "${image}" -f "${dockerfile}" .
+    docker build --platform linux/amd64 -t "${image}" -f "${dockerfile}" .
 
     if gcloud artifacts docker images describe "${image}" &>/dev/null; then
         echo "Image ${image} already exists in Artifact Registry, skipping push."
