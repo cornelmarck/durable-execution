@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/cornelmarck/durable-execution/api"
+	"github.com/cornelmarck/durable-execution/internal/db"
 	"github.com/cornelmarck/durable-execution/internal/server"
+	"github.com/cornelmarck/durable-execution/internal/service"
 )
 
 func main() {
@@ -24,11 +29,24 @@ func run(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 
-	svc := server.NewServer(nil)
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return fmt.Errorf("DATABASE_URL environment variable is required")
+	}
+
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		return fmt.Errorf("connect to database: %w", err)
+	}
+	defer pool.Close()
+
+	store := db.NewStore(pool)
+	svc := service.New(store)
+	srv := server.NewServer(svc)
 
 	mux := http.NewServeMux()
 	api.RegisterDocsRoutes(mux)
-	mux.Handle("/", svc)
+	mux.Handle("/", srv)
 
 	httpServer := &http.Server{
 		Addr:    ":8080",

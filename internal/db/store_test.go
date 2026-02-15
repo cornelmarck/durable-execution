@@ -158,7 +158,7 @@ func TestQueues(t *testing.T) {
 		assert.Equal(t, q.EventTtlSeconds, got.EventTtlSeconds)
 	})
 
-	t.Run("duplicate name returns error", func(t *testing.T) {
+	t.Run("duplicate name returns ErrConflict", func(t *testing.T) {
 		s := newTestStore(t)
 		ctx := context.Background()
 
@@ -174,7 +174,7 @@ func TestQueues(t *testing.T) {
 			TaskTtlSeconds:  3600,
 			EventTtlSeconds: 3600,
 		})
-		require.Error(t, err)
+		require.ErrorIs(t, err, ErrConflict)
 	})
 }
 
@@ -638,12 +638,50 @@ func TestWorkflowRuns(t *testing.T) {
 	})
 }
 
+func TestErrNotFound(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	t.Run("GetQueueByName", func(t *testing.T) {
+		_, err := s.GetQueueByName(ctx, "nonexistent")
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+
+	t.Run("GetRun", func(t *testing.T) {
+		_, err := s.GetRun(ctx, pgtype.UUID{Bytes: [16]byte{99}, Valid: true})
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+
+	t.Run("GetTask", func(t *testing.T) {
+		_, err := s.GetTask(ctx, pgtype.UUID{Bytes: [16]byte{99}, Valid: true})
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+
+	t.Run("GetEventByName", func(t *testing.T) {
+		_, err := s.GetEventByName(ctx, "nonexistent")
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+
+	t.Run("GetCheckpoint", func(t *testing.T) {
+		_, err := s.GetCheckpoint(ctx, dbgen.GetCheckpointParams{
+			TaskID:   pgtype.UUID{Bytes: [16]byte{99}, Valid: true},
+			StepName: "nonexistent",
+		})
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+
+	t.Run("GetWorkflowRun", func(t *testing.T) {
+		_, err := s.GetWorkflowRun(ctx, pgtype.UUID{Bytes: [16]byte{99}, Valid: true})
+		require.ErrorIs(t, err, ErrNotFound)
+	})
+}
+
 func TestExecTx(t *testing.T) {
 	t.Run("commit makes both writes visible", func(t *testing.T) {
 		s := newTestStore(t)
 		ctx := context.Background()
 
-		err := s.ExecTx(ctx, func(q *dbgen.Queries) error {
+		err := s.ExecTx(ctx, func(q dbgen.Querier) error {
 			_, err := q.CreateQueue(ctx, dbgen.CreateQueueParams{
 				Name:            "tx-queue-1",
 				TaskTtlSeconds:  3600,
@@ -671,7 +709,7 @@ func TestExecTx(t *testing.T) {
 		s := newTestStore(t)
 		ctx := context.Background()
 
-		err := s.ExecTx(ctx, func(q *dbgen.Queries) error {
+		err := s.ExecTx(ctx, func(q dbgen.Querier) error {
 			_, err := q.CreateQueue(ctx, dbgen.CreateQueueParams{
 				Name:            "rollback-queue",
 				TaskTtlSeconds:  3600,
