@@ -2,7 +2,9 @@
 
 A durable task queue implemented as an HTTP server, backed by PostgreSQL.
 
-Based on: https://github.com/earendil-works/absurd
+Conceptually based on [Absurd](https://github.com/earendil-works/absurd), but implemented as an HTTP server instead of an embedded library, with additional features like long polling and queue monitoring. The implementation is my own, with help from Claude.
+
+Note that this is experimental software. For production workloads, please use an actual message queue such as SQS instead.
 
 ## Features
 
