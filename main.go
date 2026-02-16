@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 	ctx := context.Background()
 	if err := run(ctx); err != nil {
 		slog.Error("server error", "error", err)
