@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+    groups:
+      monthly-batch:
+        patterns:
+          - "*"
+
+    open-pull-requests-limit: 2
+
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
