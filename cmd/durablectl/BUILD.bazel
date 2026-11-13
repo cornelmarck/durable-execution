@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "durablectl_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/cornelmarck/durable-execution/cmd/durablectl",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//api/v1:api",
+        "//clients/go",
+        "@com_github_urfave_cli_v3//:cli",
+    ],
+)
+
+go_binary(
+    name = "durablectl",
+    embed = [":durablectl_lib"],
+    visibility = ["//visibility:public"],
+)
