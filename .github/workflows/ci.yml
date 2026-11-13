@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: bazel-contrib/setup-bazel@0.19.2
+        with:
+          # Avoid downloading Bazel every run.
+          bazelisk-cache: true
+          # Build outputs, keyed per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Downloaded modules and base image manifests, shared across workflows.
+          repository-cache: true
+
+      # Fail if MODULE.bazel or BUILD files are out of date.
+      - name: Check generated files
+        run: |
+          bazel mod tidy
+          git diff --exit-code MODULE.bazel
+          bazel run //:gazelle -- -mode=diff
+
+      # Includes the multi-arch images.
+      - name: Build
+        run: bazel build --lockfile_mode=error //...
+
+      # The runner has Docker, so the testcontainers DB tests run too.
+      - name: Test
+        run: bazel test --lockfile_mode=error //...
