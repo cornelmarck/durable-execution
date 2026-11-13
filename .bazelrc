@@ -1,0 +1,12 @@
+common --enable_platform_specific_config
+
+# Speeds up builds that target several platforms.
+common:macos --experimental_output_paths=strip
+common:linux --experimental_output_paths=strip
+
+test --test_output=errors
+
+# Provides STABLE_GIT_SHA, which image push targets use as their tag.
+common --workspace_status_command=tools/workspace_status.sh
+
+try-import %workspace%/.bazelrc.user

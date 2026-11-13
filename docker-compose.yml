@@ -1,3 +1,5 @@
+# Images are built by Bazel; load them before starting:
+#   bazel run //cmd/server:image_load && bazel run //cmd/migrations:image_load
 services:
   postgres:
     image: postgres:18-alpine
@@ -8,23 +10,33 @@ services:
       POSTGRES_PASSWORD: dev
       POSTGRES_DB: durable
     volumes:
-      - ./internal/db/migrations:/docker-entrypoint-initdb.d
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ keeps its data in a versioned subdirectory of this path.
+      - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev -d durable"]
+      # Over TCP, so the temporary socket-only server during first init doesn't count as ready.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U dev -d durable"]
       interval: 2s
       timeout: 3s
       retries: 10
 
+  migrate:
+    image: durable-execution-migrations:dev
+    pull_policy: never
+    command: ["postgres://dev:dev@postgres:5432/durable?sslmode=disable", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   server:
-    build: .
+    image: durable-execution:dev
+    pull_policy: never
     ports:
       - "8080:8080"
     environment:
       DATABASE_URL: "postgres://dev:dev@postgres:5432/durable?sslmode=disable"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:

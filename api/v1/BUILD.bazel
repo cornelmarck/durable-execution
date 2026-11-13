@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "api",
+    srcs = [
+        "checkpoint.go",
+        "error.go",
+        "event.go",
+        "queue.go",
+        "run.go",
+        "task.go",
+        "workflow.go",
+    ],
+    importpath = "github.com/cornelmarck/durable-execution/api/v1",
+    visibility = ["//visibility:public"],
+)

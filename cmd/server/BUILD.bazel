@@ -1,0 +1,40 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("//tools:defs.bzl", "container_image")
+
+go_library(
+    name = "server_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/cornelmarck/durable-execution/cmd/server",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//api",
+        "//internal/db",
+        "//internal/server",
+        "//internal/service",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_binary(
+    name = "server",
+    embed = [":server_lib"],
+    visibility = ["//visibility:public"],
+)
+
+image_layer(
+    name = "image_layer",
+    srcs = {"/bin/server": ":server"},
+    # The image platforms are cgo-off, so this is a static binary with no runfiles.
+    include_runfiles = False,
+)
+
+container_image(
+    name = "image",
+    base = "@alpine",
+    entrypoint = ["/bin/server"],
+    exposed_ports = ["8080/tcp"],
+    layers = [":image_layer"],
+    repository = "durable-execution",
+)

@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "server",
+    srcs = [
+        "middleware.go",
+        "routes.go",
+        "server.go",
+    ],
+    importpath = "github.com/cornelmarck/durable-execution/internal/server",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//api/v1:api",
+        "//internal/db",
+        "//internal/service",
+        "@com_github_go_playground_validator_v10//:validator",
+        "@com_github_google_uuid//:uuid",
+    ],
+)

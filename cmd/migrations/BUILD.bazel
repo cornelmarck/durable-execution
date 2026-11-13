@@ -1,0 +1,21 @@
+load("@rules_img//img:layer.bzl", "image_layer")
+load("//tools:defs.bzl", "container_image")
+
+image_layer(
+    name = "image_layer",
+    srcs = {"/migrations/": "//internal/db:migrations"},
+    multi_file_layout = "flatten",
+)
+
+container_image(
+    name = "image",
+    base = "@migrate",
+    entrypoint = [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+    ],
+    layers = [":image_layer"],
+    repository = "durable-execution-migrations",
+)

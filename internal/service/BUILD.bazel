@@ -1,0 +1,41 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "service",
+    srcs = [
+        "checkpoint.go",
+        "event.go",
+        "queue.go",
+        "run.go",
+        "service.go",
+        "task.go",
+        "workflow.go",
+    ],
+    importpath = "github.com/cornelmarck/durable-execution/internal/service",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//api/v1:api",
+        "//internal/db",
+        "//internal/db/gen",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgtype",
+    ],
+)
+
+go_test(
+    name = "service_test",
+    srcs = [
+        "run_test.go",
+        "store_mock_test.go",
+        "task_test.go",
+    ],
+    embed = [":service"],
+    deps = [
+        "//api/v1:api",
+        "//internal/db",
+        "//internal/db/gen",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

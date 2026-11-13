@@ -1,0 +1,47 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "db",
+    srcs = [
+        "listener.go",
+        "sqlc.go",
+        "store.go",
+    ],
+    importpath = "github.com/cornelmarck/durable-execution/internal/db",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/db/gen",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//pgconn",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+filegroup(
+    name = "migrations",
+    srcs = glob(["migrations/*.sql"]),
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "db_test",
+    size = "medium",
+    srcs = [
+        "listener_test.go",
+        "store_test.go",
+    ],
+    # Applied via testcontainers' init scripts; needs a running Docker daemon.
+    data = [":migrations"],
+    embed = [":db"],
+    tags = ["requires-docker"],
+    deps = [
+        "//internal/db/gen",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@com_github_jackc_pgx_v5//stdlib",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
+    ],
+)

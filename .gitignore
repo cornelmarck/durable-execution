@@ -35,3 +35,6 @@ go.work.sum
 # Python
 __pycache__
 .venv
+# Bazel
+/bazel-*
+.bazelrc.user
