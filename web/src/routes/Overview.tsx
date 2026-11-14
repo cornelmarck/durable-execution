@@ -17,9 +17,6 @@ export function Overview() {
     const lag = lagOf(s);
     return lag !== undefined && (!acc || lag > acc.lag) ? { name: s.queue_name, lag } : acc;
   }, undefined);
-  const lagging = all
-    .filter((s) => (lagOf(s) ?? 0) > LAG_WARN_SECONDS)
-    .sort((a, b) => (lagOf(b) ?? 0) - (lagOf(a) ?? 0));
   const ready = queues.isSuccess && !stats.isPending;
 
   return (
@@ -42,23 +39,6 @@ export function Overview() {
           tone={worst && worst.lag > LAG_WARN_SECONDS ? "warn" : undefined}
         />
       </div>
-
-      {lagging.length > 0 && (
-        <Card title="Needs attention" aside={`${lagging.length} queue${lagging.length > 1 ? "s" : ""} lagging`}>
-          {lagging.map((s) => (
-            <div key={s.queue_name} className="notice">
-              <span className="pill" style={{ background: "var(--st-failed-bg)", color: "var(--st-failed-fg)" }}>
-                Consumer lag
-              </span>
-              <span style={{ flex: "1 1 300px" }}>
-                Oldest pending run in <strong>{s.queue_name}</strong> has waited {formatDuration(lagOf(s) ?? 0)}; workers may be down or
-                too few.
-              </span>
-              <Link to={`/queues/${encodeURIComponent(s.queue_name)}`}>Open queue →</Link>
-            </div>
-          ))}
-        </Card>
-      )}
 
       <Card title="Queues" aside={<Link to="/queues">All queues →</Link>}>
         {queues.isPending ? (
