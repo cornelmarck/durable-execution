@@ -1,0 +1,101 @@
+load("@aspect_rules_js//js:defs.bzl", "js_run_devserver")
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//web:openapi-typescript/package_json.bzl", openapi_typescript_bin = "bin")
+load("@npm//web:typescript/package_json.bzl", typescript_bin = "bin")
+load("@npm//web:vite/package_json.bzl", vite_bin = "bin")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("//tools:defs.bzl", "container_image")
+
+npm_link_all_packages(name = "node_modules")
+
+SRCS = glob(["src/**"]) + [
+    "index.html",
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+]
+
+# Static site: bazel build //web:dist
+vite_bin.vite(
+    name = "dist",
+    srcs = SRCS + [":node_modules"],
+    args = ["build"],
+    chdir = package_name(),
+    out_dirs = ["dist"],
+    visibility = ["//visibility:public"],
+)
+
+# Type-checks the whole app; Vite itself only strips types.
+typescript_bin.tsc_test(
+    name = "typecheck",
+    args = [
+        "--project",
+        "tsconfig.json",
+    ],
+    chdir = package_name(),
+    data = SRCS + [":node_modules"],
+)
+
+# Dev server with hot reload, proxying /api to localhost:8080 (override with DURABLE_API):
+#   bazel run //web:dev
+vite_bin.vite_binary(
+    name = "vite",
+    chdir = package_name(),
+)
+
+js_run_devserver(
+    name = "dev",
+    data = SRCS + [":node_modules"],
+    tool = ":vite",
+)
+
+# API types generated from the OpenAPI spec. The copy in src/ is checked in so
+# plain `pnpm dev` works; `bazel test //web:all` fails if it's stale, and
+# `bazel run //web:schema` updates it.
+openapi_typescript_bin.openapi_typescript(
+    name = "schema_gen",
+    srcs = ["//api:openapi_spec"],
+    outs = ["schema.gen.d.ts"],
+    args = [
+        "../api/openapi.yaml",
+        "--output",
+        "schema.gen.d.ts",
+    ],
+    chdir = package_name(),
+)
+
+write_source_files(
+    name = "schema",
+    files = {"src/api/schema.d.ts": ":schema_gen"},
+)
+
+# The static files are the same for every platform, but the image build switches
+# to Linux target platforms, which would make rules_js link Linux-only native
+# packages (Rollup, esbuild) into a Vite build that runs on this machine. So
+# always build them for the host.
+platform_transition_filegroup(
+    name = "dist_host",
+    srcs = [":dist"],
+    target_platform = "@platforms//host",
+)
+
+# Container image: nginx serving dist/. Route /api to the API in front of it.
+#   bazel run //web:image_load   # loads durable-console:dev into Docker
+image_layer(
+    name = "image_layer",
+    srcs = {
+        "/etc/nginx/console/headers.conf": "nginx/headers.conf",
+        "/etc/nginx/conf.d/default.conf": "nginx/default.conf",
+        "/usr/share/nginx/html": ":dist_host",
+    },
+)
+
+container_image(
+    name = "image",
+    base = "@nginx",
+    exposed_ports = ["8080/tcp"],
+    layers = [":image_layer"],
+    repository = "durable-console",
+)

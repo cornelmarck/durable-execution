@@ -1,4 +1,12 @@
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@rules_go//go:def.bzl", "go_library")
+
+# The spec in the output tree, where JS tools (web console codegen) read inputs.
+copy_to_bin(
+    name = "openapi_spec",
+    srcs = ["openapi.yaml"],
+    visibility = ["//web:__pkg__"],
+)
 
 go_library(
     name = "api",

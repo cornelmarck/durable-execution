@@ -31,7 +31,8 @@ def _container_image_impl(name, visibility, base, layers, entrypoint, exposed_po
         name = name + "_manifest",
         base = base,
         config_fragment = config_fragment,
-        entrypoint = entrypoint,
+        # None keeps the base image's entrypoint; an empty list would clear it.
+        entrypoint = entrypoint or None,
         layers = layers,
     )
 
@@ -73,7 +74,7 @@ container_image = macro(
     attrs = {
         "base": attr.label(mandatory = True, configurable = False, doc = "Base image, e.g. from `pull()`."),
         "layers": attr.label_list(mandatory = True, doc = "Layers on top of the base, usually `image_layer` targets."),
-        "entrypoint": attr.string_list(configurable = False),
+        "entrypoint": attr.string_list(configurable = False, doc = "Empty keeps the base image's entrypoint."),
         "exposed_ports": attr.string_list(configurable = False, doc = "E.g. `[\"8080/tcp\"]`."),
         "repository": attr.string(mandatory = True, configurable = False, doc = "Repository name under REPOSITORY_PREFIX."),
     },

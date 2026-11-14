@@ -5,6 +5,26 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_go", version = "0.65.0")
 bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_img", version = "0.3.25")
+bazel_dep(name = "aspect_rules_js", version = "3.6.1")
+bazel_dep(name = "rules_nodejs", version = "6.7.7")
+bazel_dep(name = "bazel_lib", version = "3.8.0")
+
+# Node.js toolchain for building and running the web console under Bazel.
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
+node.toolchain(node_version = "22.20.0")
+
+# npm packages for the web console, resolved from its pnpm lockfile.
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm",
+    data = [
+        "//web:package.json",
+        "//web:pnpm-workspace.yaml",
+    ],
+    pnpm_lock = "//web:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "npm")
 
 # Go toolchain, pinned to the version in go.mod.
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
@@ -41,4 +61,17 @@ pull(
     registry = "index.docker.io",
     repository = "migrate/migrate",
     tag = "v4.18.3",
+)
+
+# Runs as uid 101 on port 8080; serves the web console.
+pull(
+    name = "nginx",
+    digest = "sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+    registry = "index.docker.io",
+    repository = "nginxinc/nginx-unprivileged",
+    tag = "1.30.6-alpine",
 )

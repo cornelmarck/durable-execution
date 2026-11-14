@@ -23,13 +23,29 @@ After changing `api/openapi.yaml`, regenerate the client types:
 pnpm gen:api
 ```
 
-## Build
+## Bazel
+
+The console builds with the rest of the repo (`rules_js`, npm packages from `pnpm-lock.yaml`):
 
 ```bash
-pnpm build          # type-checks, then writes static files to dist/
+bazel build //web:dist        # static site in bazel-bin/web/dist
+bazel test //web:all          # type-check, and check src/api/schema.d.ts matches the spec
+bazel run //web:schema        # regenerate src/api/schema.d.ts after changing api/openapi.yaml
+bazel run //web:dev           # dev server, same as `pnpm dev`
+bazel run //web:image_load    # load the durable-console:dev image into Docker
 ```
 
-The app calls the API at the relative path `/api/v1`, so in production serve `dist/` from the same origin as the API (e.g. an Ingress routing `/api` to the server and everything else to the console), with a fallback to `index.html` for client-side routes.
+After adding or upgrading a package, run `pnpm install` here so `pnpm-lock.yaml` changes; Bazel reads the lockfile.
+
+## Image
+
+`//web:image` is nginx (unprivileged, port 8080) serving the built files, with no runtime configuration:
+
+- It doesn't proxy the API. Route `/api` to the API server in front of it (e.g. the Ingress), so the browser sees one origin and needs no CORS. `/api/*` requests that reach the console get a 404.
+- Hashed `/assets/*` are cached forever; `index.html` is never cached; unknown paths fall back to `index.html` for client-side routes.
+- Sends a strict Content-Security-Policy; `/healthz` returns 200 for probes.
+
+For local development use `pnpm dev` or `bazel run //web:dev`, which proxy `/api` to `localhost:8080`. `//web:image_push` is picked up by the "Push images" workflow like the other images.
 
 ## Not built yet
 
