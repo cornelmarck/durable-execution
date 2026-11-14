@@ -1,0 +1,57 @@
+name: Push images
+
+# Manual only: Actions tab → "Push images" → Run workflow (pick the branch).
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Push targets, space-separated (e.g. //cmd/server:image_push). Empty pushes all."
+        required: false
+        default: ""
+
+# One push at a time.
+concurrency:
+  group: push-images
+
+permissions:
+  contents: read
+  id-token: write # for Workload Identity Federation
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: bazel-contrib/setup-bazel@0.19.2
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      - id: gcp
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      # rules_img reads registry credentials from the Docker config this writes.
+      - uses: docker/login-action@v4
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.gcp.outputs.access_token }}
+
+      - name: Push
+        env:
+          TARGETS: ${{ inputs.targets }}
+        run: |
+          if [ -z "$TARGETS" ]; then
+            TARGETS=$(bazel query 'kind(image_push, //...)')
+          fi
+          for target in $TARGETS; do
+            echo "::group::$target"
+            bazel run --lockfile_mode=error "$target"
+            echo "::endgroup::"
+          done
