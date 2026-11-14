@@ -240,6 +240,66 @@ paths:
                     items:
                       $ref: "#/components/schemas/ClaimedTask"
 
+  /tasks:
+    get:
+      operationId: listTasks
+      summary: List tasks
+      description: |
+        Lists tasks across queues, newest first, with optional filters.
+      tags: [Tasks]
+      parameters:
+        - name: queue_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by queue name
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, completed, failed, canceled]
+          description: Filter by task status
+        - name: task_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by exact task name
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pagination cursor from a previous response
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 50
+          description: Maximum number of tasks to return
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TaskSummary"
+                  next_cursor:
+                    type: string
+                    description: Pass as `cursor` to fetch the next page. Absent when there are no more results.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /runs:
     get:
       operationId: listRuns
@@ -834,6 +894,28 @@ components:
           $ref: "#/components/schemas/RetryStrategy"
         max_attempts:
           type: integer
+
+    TaskSummary:
+      type: object
+      required: [id, task_name, status, queue_name, max_attempts, created_at]
+      properties:
+        id:
+          type: string
+        task_name:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, canceled]
+        queue_name:
+          type: string
+        max_attempts:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
 
     RunSummary:
       type: object

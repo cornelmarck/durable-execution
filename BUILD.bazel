@@ -3,4 +3,5 @@ load("@gazelle//:def.bzl", "gazelle")
 # gazelle:prefix github.com/cornelmarck/durable-execution
 # gazelle:exclude examples
 # gazelle:exclude clients/python
+# gazelle:exclude web
 gazelle(name = "gazelle")

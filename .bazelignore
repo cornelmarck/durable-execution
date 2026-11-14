@@ -1,3 +1,4 @@
 examples/__pycache__
 examples/.venv
 clients/python/.venv
+web/node_modules
