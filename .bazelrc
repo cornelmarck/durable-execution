@@ -6,6 +6,9 @@ common:linux --experimental_output_paths=strip
 
 test --test_output=errors
 
+# Recommended by rules_python; stops py_binary from creating empty __init__.py files.
+common --incompatible_default_to_explicit_init_py
+
 # Provides STABLE_GIT_SHA, which image push targets use as their tag.
 common --workspace_status_command=tools/workspace_status.sh
 

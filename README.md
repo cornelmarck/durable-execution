@@ -31,6 +31,16 @@ The server exposes a REST API on port 8080. Interactive documentation is availab
 
 See [`api/openapi.yaml`](api/openapi.yaml) for the full specification.
 
+A ConnectRPC API is being defined in [`proto/`](proto). Regenerate the Go,
+Python and TypeScript stubs in `gen/pb/` with:
+
+```sh
+tools/proto/gen.sh
+```
+
+It builds buf and all plugins with Bazel and runs `buf lint` and
+`buf generate` with only those on `PATH` (no remote plugins).
+
 ## Quick start
 
 Requires [Bazelisk](https://github.com/bazelbuild/bazelisk) (`brew install bazelisk`) and Docker.
@@ -122,16 +132,23 @@ durablectl --server https://prod:8080 queues stats demo
 - **Python** — `clients/python` (sync, based on httpx)
 - **CLI** — `cmd/durablectl`
 
+Python uses a single uv workspace rooted at `pyproject.toml`: run `uv sync` at
+the repo root, then e.g. `uv run examples/event.py work` from anywhere in the
+repo.
+
 ## Project structure
 
 ```
 api/                  OpenAPI spec and Go API types
+proto/                Protobuf/ConnectRPC definitions
+gen/pb/               buf-generated stubs (go/, python/, ts/)
 clients/go/           Go HTTP client
 clients/python/       Python HTTP client
 cmd/durablectl/       CLI tool
 cmd/server/           Server binary and image
 cmd/migrations/       Migrations image
 tools/                Shared Bazel macros and build scripts
+tools/proto/          Proto toolchain (buf, plugins), buf.sh and gen.sh
 examples/             Example workflows
 internal/
   db/                 Store, listener, migrations

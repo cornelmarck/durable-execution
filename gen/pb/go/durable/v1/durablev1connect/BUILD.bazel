@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "durablev1connect",
+    srcs = [
+        "checkpoint.connect.go",
+        "event.connect.go",
+        "queue.connect.go",
+        "run.connect.go",
+        "task.connect.go",
+        "workflow.connect.go",
+    ],
+    importpath = "github.com/cornelmarck/durable-execution/gen/pb/go/durable/v1/durablev1connect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gen/pb/go/durable/v1:durable",
+        "@com_connectrpc_connect//:connect",
+    ],
+)

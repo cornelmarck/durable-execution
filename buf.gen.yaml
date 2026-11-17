@@ -1,0 +1,39 @@
+# Run via tools/proto/gen.sh, which puts the Bazel-built plugins on PATH. No
+# remote plugins: every `local` name below resolves to one of those.
+version: v2
+# No `clean: true`: it would also delete the hand-written gen/pb/python/BUILD.bazel.
+# tools/proto/gen.sh clears the output directories instead.
+managed:
+  enabled: true
+  disable:
+    # Keep protovalidate's own go_package, which its Go runtime imports.
+    - file_option: go_package
+      module: buf.build/bufbuild/protovalidate
+  override:
+    - file_option: go_package_prefix
+      value: github.com/cornelmarck/durable-execution/gen/pb/go
+plugins:
+  # Go
+  - local: protoc-gen-go
+    out: gen/pb/go
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen/pb/go
+    opt: paths=source_relative
+
+  # Python (protobuf-py messages + connectrpc stubs)
+  - local: protoc-gen-py
+    out: gen/pb/python
+    # buf/validate/validate.proto ships with the protovalidate package (under
+    # its _gen module); importing that copy avoids registering it twice.
+    opt: map_imports=buf/validate/**:protovalidate._gen
+  - local: protoc-gen-connectrpc
+    out: gen/pb/python
+
+  # TypeScript (protobuf-es v2 messages + service descriptors for Connect-ES)
+  - local: protoc-gen-es
+    out: gen/pb/ts
+    opt:
+      - target=ts
+      # buf/validate/validate.proto ships with @bufbuild/protovalidate.
+      - rewrite_imports=./buf/**/*_pb.js:@bufbuild/protovalidate/gen

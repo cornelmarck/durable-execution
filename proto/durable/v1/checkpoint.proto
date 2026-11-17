@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package durable.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Persists per-step state for a task, so retried runs can skip finished steps.
+service CheckpointService {
+  // Creates or replaces the checkpoint for a step.
+  rpc SetCheckpoint(SetCheckpointRequest) returns (SetCheckpointResponse);
+
+  // Fails with NOT_FOUND if the step has no checkpoint.
+  rpc GetCheckpoint(GetCheckpointRequest) returns (GetCheckpointResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message Checkpoint {
+  string task_id = 1;
+  string step_name = 2;
+  google.protobuf.Value state = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message SetCheckpointRequest {
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+  string step_name = 2 [(buf.validate.field).required = true];
+  // Arbitrary JSON state.
+  google.protobuf.Value state = 3 [(buf.validate.field).required = true];
+  // The run setting the checkpoint.
+  string owner_run_id = 4 [(buf.validate.field).string.uuid = true];
+  // Extends the owner run's claim by this much.
+  google.protobuf.Duration extend_claim_by = 5 [(buf.validate.field).duration.gte = {seconds: 1}];
+}
+
+message SetCheckpointResponse {
+  string task_id = 1;
+  string step_name = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message GetCheckpointRequest {
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+  string step_name = 2 [(buf.validate.field).required = true];
+}
+
+message GetCheckpointResponse {
+  Checkpoint checkpoint = 1;
+}

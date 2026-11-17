@@ -1,0 +1,8 @@
+# The directives here are hand-written and tools/proto/gen.sh keeps this file;
+# gazelle generates the py_library targets below it, importable as
+# `durable.v1...`.
+# gazelle:python_extension enabled
+# gazelle:python_root
+# gazelle:python_default_visibility //visibility:public
+# protoc-gen-py always writes one at the output root; nothing imports it.
+# gazelle:exclude __init__.py

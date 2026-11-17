@@ -1,0 +1,31 @@
+# GENERATED FILE - DO NOT EDIT!
+#
+# To update this file, run:
+#   bazel run //:gazelle_python_manifest.update
+
+---
+manifest:
+  modules_mapping:
+    connectrpc: connectrpc
+    opentelemetry.attributes: opentelemetry_api
+    opentelemetry.baggage: opentelemetry_api
+    opentelemetry.context: opentelemetry_api
+    opentelemetry.environment_variables: opentelemetry_api
+    opentelemetry.metrics: opentelemetry_api
+    opentelemetry.propagate: opentelemetry_api
+    opentelemetry.propagators.composite: opentelemetry_api
+    opentelemetry.propagators.textmap: opentelemetry_api
+    opentelemetry.trace: opentelemetry_api
+    opentelemetry.util.re: opentelemetry_api
+    opentelemetry.util.types: opentelemetry_api
+    opentelemetry.version: opentelemetry_api
+    protobuf: protobuf_py_pure
+    protobuf_ext: protobuf_py_ext
+    protoc_gen_connectrpc: protoc_gen_connectrpc
+    protoc_gen_py: protoc_gen_py
+    protovalidate: protovalidate
+    pyqwest: pyqwest
+    typing_extensions: typing_extensions
+  pip_repository:
+    name: proto_pip
+integrity: c728e952ccb7704f3e0805f18abe0b07b151faa64202033d20a6b7ba49cbee6b

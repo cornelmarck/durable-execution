@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package durable.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Manages queues. Tasks are created in and claimed from a queue.
+service QueueService {
+  // Creates a queue. Fails with ALREADY_EXISTS if the name is taken.
+  rpc CreateQueue(CreateQueueRequest) returns (CreateQueueResponse);
+
+  rpc ListQueues(ListQueuesRequest) returns (ListQueuesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Deletes a queue. Fails with FAILED_PRECONDITION if it still has tasks.
+  rpc DeleteQueue(DeleteQueueRequest) returns (DeleteQueueResponse);
+
+  rpc GetQueueStats(GetQueueStatsRequest) returns (GetQueueStatsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// Automatic background cleanup of completed tasks and events. Unset fields use
+// the server default of 3 days; zero disables that cleanup.
+message CleanupPolicy {
+  // Delete completed tasks older than this.
+  google.protobuf.Duration task_ttl = 1 [(buf.validate.field).duration.gte = {}];
+  // Delete events older than this.
+  google.protobuf.Duration event_ttl = 2 [(buf.validate.field).duration.gte = {}];
+}
+
+message Queue {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+  CleanupPolicy cleanup = 3;
+}
+
+message CreateQueueRequest {
+  string name = 1 [(buf.validate.field).required = true];
+  CleanupPolicy cleanup = 2;
+}
+
+message CreateQueueResponse {
+  Queue queue = 1;
+}
+
+message ListQueuesRequest {}
+
+message ListQueuesResponse {
+  repeated Queue queues = 1;
+}
+
+message DeleteQueueRequest {
+  string name = 1 [(buf.validate.field).required = true];
+}
+
+message DeleteQueueResponse {}
+
+message GetQueueStatsRequest {
+  string queue_name = 1 [(buf.validate.field).required = true];
+}
+
+message GetQueueStatsResponse {
+  string queue_name = 1;
+  int64 pending_runs = 2;
+  int64 claimed_runs = 3;
+  int64 completed_runs = 4;
+  // Unset when there are no pending runs.
+  google.protobuf.Duration oldest_pending_run_age = 5;
+}

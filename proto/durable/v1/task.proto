@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package durable.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Creates, claims and lists tasks. Each attempt at a task is a run.
+service TaskService {
+  // Creates a task in a queue, along with its first run.
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+
+  // Claims up to `limit` runs from a queue. Claimed runs are locked for
+  // `claim_timeout`; if not completed or failed within that window they become
+  // claimable again. Returns no tasks if none are available.
+  rpc ClaimTasks(ClaimTasksRequest) returns (ClaimTasksResponse);
+
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_COMPLETED = 2;
+  TASK_STATUS_FAILED = 3;
+  TASK_STATUS_CANCELED = 4;
+}
+
+enum RetryStrategyKind {
+  RETRY_STRATEGY_KIND_UNSPECIFIED = 0;
+  RETRY_STRATEGY_KIND_FIXED = 1;
+  RETRY_STRATEGY_KIND_EXPONENTIAL = 2;
+}
+
+// The delay between retries.
+message RetryStrategy {
+  RetryStrategyKind kind = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).enum.defined_only = true
+  ];
+  // Delay before the first retry.
+  google.protobuf.Duration base = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).duration.gte = {}
+  ];
+  // Multiplier per attempt. Exponential only.
+  optional double factor = 3 [(buf.validate.field).double.gte = 1];
+  // Upper bound on the delay.
+  google.protobuf.Duration max = 4 [(buf.validate.field).duration.gte = {}];
+}
+
+message Task {
+  string id = 1;
+  string task_name = 2;
+  TaskStatus status = 3;
+  string queue_name = 4;
+  int32 max_attempts = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // Set once the task has finished.
+  google.protobuf.Timestamp completed_at = 7;
+}
+
+// A run handed to a worker by ClaimTasks.
+message ClaimedTask {
+  string run_id = 1;
+  string task_id = 2;
+  int32 attempt = 3;
+  string task_name = 4;
+  google.protobuf.Value params = 5;
+  map<string, string> headers = 6;
+  RetryStrategy retry_strategy = 7;
+  int32 max_attempts = 8;
+}
+
+message CreateTaskRequest {
+  string queue_name = 1 [(buf.validate.field).required = true];
+  // E.g. "process_data".
+  string task_name = 2 [(buf.validate.field).required = true];
+  // Arbitrary JSON parameters.
+  google.protobuf.Value params = 3;
+  // Arbitrary key-value metadata.
+  map<string, string> headers = 4;
+  RetryStrategy retry_strategy = 5;
+  // Defaults to 1.
+  optional int32 max_attempts = 6 [(buf.validate.field).int32.gte = 1];
+  // How long the task may wait in the queue before being claimed; it is
+  // canceled if not claimed in time. Unset or zero means no limit.
+  google.protobuf.Duration start_timeout = 7 [(buf.validate.field).duration.gte = {}];
+  // Wall-clock limit from creation to completion, across all retries; the task
+  // is canceled when it elapses. Distinct from ClaimTasks' claim_timeout,
+  // which bounds a single worker's lease on a run. Unset or zero means no limit.
+  google.protobuf.Duration execution_timeout = 8 [(buf.validate.field).duration.gte = {}];
+  // Links the task to an existing workflow run; unset for none.
+  optional string workflow_run_id = 9 [(buf.validate.field).string.uuid = true];
+}
+
+message CreateTaskResponse {
+  string task_id = 1;
+  string run_id = 2;
+  // Empty if the task isn't linked to a workflow run.
+  string workflow_run_id = 3;
+}
+
+message ClaimTasksRequest {
+  string queue_name = 1 [(buf.validate.field).required = true];
+  // Maximum number of tasks to claim.
+  int32 limit = 2 [(buf.validate.field).int32.gte = 1];
+  // How long the claim lasts.
+  google.protobuf.Duration claim_timeout = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).duration.gte = {seconds: 1}
+  ];
+  // When set, the server holds the call open until tasks are available or this
+  // elapses.
+  google.protobuf.Duration long_poll = 4 [(buf.validate.field).duration = {
+    gte: {seconds: 5}
+    lte: {seconds: 30}
+  }];
+}
+
+message ClaimTasksResponse {
+  repeated ClaimedTask tasks = 1;
+}
+
+message ListTasksRequest {
+  // Filters; empty or unspecified matches everything.
+  string queue_name = 1;
+  TaskStatus status = 2 [(buf.validate.field).enum.defined_only = true];
+  // Exact match.
+  string task_name = 3;
+
+  // Defaults to 50.
+  int32 page_size = 4 [(buf.validate.field).int32.gte = 0];
+  // Opaque next_page_token from a previous response; empty for the first page.
+  // The server rejects tokens it didn't issue with INVALID_ARGUMENT.
+  string page_token = 5;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  // Pass as page_token to fetch the next page. Empty when there are no more.
+  string next_page_token = 2;
+}

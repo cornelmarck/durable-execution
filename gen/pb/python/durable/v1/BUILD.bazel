@@ -1,0 +1,27 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+py_library(
+    name = "v1",
+    srcs = [
+        "__init__.py",
+        "checkpoint_connect.py",
+        "checkpoint_pb.py",
+        "event_connect.py",
+        "event_pb.py",
+        "queue_connect.py",
+        "queue_pb.py",
+        "run_connect.py",
+        "run_pb.py",
+        "task_connect.py",
+        "task_pb.py",
+        "workflow_connect.py",
+        "workflow_pb.py",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@proto_pip//connectrpc",
+        "@proto_pip//protobuf_py_pure",
+        "@proto_pip//protovalidate",
+    ],
+)

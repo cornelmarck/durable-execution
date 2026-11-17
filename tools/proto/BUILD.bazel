@@ -1,0 +1,41 @@
+load("@npm//web:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
+load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
+
+exports_files(["requirements.txt"])
+
+# Everything tools/proto/buf.sh puts on buf's PATH. Run that script (or gen.sh)
+# rather than these targets directly. The buf version is in
+# //tools:multitool.lock.json.
+
+alias(
+    name = "buf",
+    actual = "@multitool//tools/buf",
+)
+
+alias(
+    name = "protoc-gen-go",
+    actual = "@org_golang_google_protobuf//cmd/protoc-gen-go",
+)
+
+alias(
+    name = "protoc-gen-connect-go",
+    actual = "@com_connectrpc_connect//cmd/protoc-gen-connect-go",
+)
+
+# Messages and service descriptors for Connect-ES v2.
+protoc_gen_es_bin.protoc_gen_es_binary(
+    name = "protoc-gen-es",
+)
+
+# protobuf-py messages.
+py_console_script_binary(
+    name = "protoc-gen-py",
+    pkg = "@proto_pip//protoc_gen_py",
+    script = "protoc-gen-py",
+)
+
+py_console_script_binary(
+    name = "protoc-gen-connectrpc",
+    pkg = "@proto_pip//protoc_gen_connectrpc",
+    script = "protoc-gen-connectrpc",
+)

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json",
+  "buf": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.75.0/buf-Darwin-arm64",
+        "sha256": "f71b009ebd8530b12fd85b060c6c245e15d6e5110ccc8da48d8b6fa71e59330b",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.75.0/buf-Darwin-x86_64",
+        "sha256": "ff6d0979143c661d59178a032c57be883b2ac03dc9bf7d00ffca222b0354bd46",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.75.0/buf-Linux-aarch64",
+        "sha256": "00eb190aa82df17f393e05b04889cc60a0b13b3259d336e21a87d5f23ab4fd26",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.75.0/buf-Linux-x86_64",
+        "sha256": "fad1e38d6909bbb583a4da81d8c02a01046e2cd663bde7e337dd24277393764b",
+        "os": "linux",
+        "cpu": "x86_64"
+      }
+    ]
+  }
+}

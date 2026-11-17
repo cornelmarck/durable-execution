@@ -3,11 +3,15 @@ module github.com/cornelmarck/durable-execution
 go 1.27.0
 
 tool (
+	connectrpc.com/connect/cmd/protoc-gen-connect-go
 	github.com/matryer/moq
 	github.com/sqlc-dev/sqlc/cmd/sqlc
+	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
+	connectrpc.com/connect v1.21.1
 	github.com/go-playground/validator/v10 v10.30.6
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.12.0
@@ -15,6 +19,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.45.0
 	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/sync v0.24.0
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -111,7 +116,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260209200024-4cfbd4190f57 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.66.3 // indirect

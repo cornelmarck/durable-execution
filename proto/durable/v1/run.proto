@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package durable.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Reports the outcome of runs (attempts at a task) and suspends them.
+// Completing or failing a run that already finished fails with
+// FAILED_PRECONDITION.
+service RunService {
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc CompleteRun(CompleteRunRequest) returns (CompleteRunResponse);
+
+  // Fails a run, scheduling a retry if the task has attempts left.
+  rpc FailRun(FailRunRequest) returns (FailRunResponse);
+
+  // Makes a run claimable at a future time.
+  rpc ScheduleRun(ScheduleRunRequest) returns (ScheduleRunResponse);
+
+  // Suspends a run until a named event arrives or the timeout elapses. If the
+  // event already exists, returns RESOLVED with its payload. Otherwise the run
+  // is put to sleep (SLEEPING) and the worker should stop processing it; the
+  // server re-queues it when the event arrives. A later call for the same
+  // step returns TIMEOUT if the event never arrived.
+  rpc WaitForEvent(WaitForEventRequest) returns (WaitForEventResponse);
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_CLAIMED = 2;
+  RUN_STATUS_COMPLETED = 3;
+  RUN_STATUS_FAILED = 4;
+  RUN_STATUS_SLEEPING = 5;
+}
+
+enum WaitForEventStatus {
+  WAIT_FOR_EVENT_STATUS_UNSPECIFIED = 0;
+  // The event had arrived; its payload is set.
+  WAIT_FOR_EVENT_STATUS_RESOLVED = 1;
+  // The run is now sleeping until the event arrives.
+  WAIT_FOR_EVENT_STATUS_SLEEPING = 2;
+  // The timeout elapsed before the event arrived.
+  WAIT_FOR_EVENT_STATUS_TIMEOUT = 3;
+}
+
+message Run {
+  string id = 1;
+  string task_id = 2;
+  int32 attempt = 3;
+  RunStatus status = 4;
+  // Empty unless the run failed.
+  string error = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+}
+
+message ListRunsRequest {
+  // Filters; unset matches everything.
+  optional string task_id = 1 [(buf.validate.field).string.uuid = true];
+  RunStatus status = 2 [(buf.validate.field).enum.defined_only = true];
+
+  // Defaults to 50.
+  int32 page_size = 3 [(buf.validate.field).int32.gte = 0];
+  // Opaque next_page_token from a previous response; empty for the first page.
+  // The server rejects tokens it didn't issue with INVALID_ARGUMENT.
+  string page_token = 4;
+}
+
+message ListRunsResponse {
+  repeated Run runs = 1;
+  // Pass as page_token to fetch the next page. Empty when there are no more.
+  string next_page_token = 2;
+}
+
+message CompleteRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // Arbitrary JSON result.
+  google.protobuf.Value result = 2;
+}
+
+message CompleteRunResponse {
+  string run_id = 1;
+  RunStatus status = 2;
+}
+
+message FailRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // Describes the failure.
+  string error = 2 [(buf.validate.field).required = true];
+}
+
+message FailRunResponse {
+  string run_id = 1;
+  RunStatus status = 2;
+  int32 attempt = 3;
+  // Set if a retry was scheduled.
+  string next_run_id = 4;
+  // Set if a retry was scheduled.
+  google.protobuf.Timestamp next_attempt_at = 5;
+}
+
+message ScheduleRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // When the run becomes claimable.
+  google.protobuf.Timestamp run_at = 2 [(buf.validate.field).required = true];
+}
+
+message ScheduleRunResponse {
+  string run_id = 1;
+  google.protobuf.Timestamp scheduled_at = 2;
+}
+
+message WaitForEventRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // E.g. "data_ready".
+  string event_name = 2 [(buf.validate.field).required = true];
+  google.protobuf.Duration timeout = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).duration.gte = {seconds: 1}
+  ];
+  string task_id = 4 [(buf.validate.field).string.uuid = true];
+  // Makes the wait idempotent across retries.
+  string step_name = 5 [(buf.validate.field).required = true];
+}
+
+message WaitForEventResponse {
+  WaitForEventStatus status = 1;
+  // The event payload, when RESOLVED.
+  google.protobuf.Value payload = 2;
+  string message = 3;
+}

@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: proto
+# Fetched from the Buf Schema Registry and pinned in buf.lock. Update with
+# `tools/proto/buf.sh dep update`.
+deps:
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

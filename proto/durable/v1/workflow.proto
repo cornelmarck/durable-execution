@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package durable.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Tracks groups of related tasks. Link tasks to a workflow run by passing its
+// ID when creating them.
+service WorkflowService {
+  // Creates a workflow run in the pending state.
+  rpc CreateWorkflowRun(CreateWorkflowRunRequest) returns (CreateWorkflowRunResponse);
+
+  // Updates a workflow run's status, result or timing. Unset fields are left
+  // unchanged.
+  rpc UpdateWorkflowRun(UpdateWorkflowRunRequest) returns (UpdateWorkflowRunResponse);
+}
+
+enum WorkflowRunStatus {
+  WORKFLOW_RUN_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_RUN_STATUS_PENDING = 1;
+  WORKFLOW_RUN_STATUS_RUNNING = 2;
+  WORKFLOW_RUN_STATUS_COMPLETED = 3;
+  WORKFLOW_RUN_STATUS_FAILED = 4;
+  WORKFLOW_RUN_STATUS_CANCELED = 5;
+}
+
+message CreateWorkflowRunRequest {
+  // E.g. "data_pipeline".
+  string workflow_name = 1 [(buf.validate.field).required = true];
+  // E.g. "1.0.0"; empty if unversioned.
+  string workflow_version = 2;
+  // Arbitrary JSON inputs.
+  google.protobuf.Value inputs = 3;
+  // E.g. "pipeline_system"; empty if unknown.
+  string created_by = 4;
+  map<string, string> tags = 5;
+}
+
+message CreateWorkflowRunResponse {
+  string workflow_run_id = 1;
+  string workflow_name = 2;
+  WorkflowRunStatus status = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message UpdateWorkflowRunRequest {
+  string workflow_run_id = 1 [(buf.validate.field).string.uuid = true];
+  optional WorkflowRunStatus status = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // Arbitrary JSON result.
+  google.protobuf.Value result = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+}
+
+message UpdateWorkflowRunResponse {
+  string workflow_run_id = 1;
+  WorkflowRunStatus status = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}

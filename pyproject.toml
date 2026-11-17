@@ -1,0 +1,30 @@
+# The repo's only Python environment: one uv.lock and one .venv at the root.
+# `uv sync` here installs the client (editable) for the examples; `uv run`
+# from any subfolder uses this project too.
+[project]
+name = "durable-execution"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["durable"]
+
+[dependency-groups]
+# Bazel's Python deps for protobuf: the protoc plugins (tools/proto) and the
+# runtime the generated code in gen/pb/python imports. Not installed by
+# `uv sync`. After changing it, re-export tools/proto/requirements.txt (the
+# command is in its header) and run `bazel run //:gazelle_python_manifest.update`.
+proto = [
+    "connectrpc==0.13.0",
+    "protoc-gen-connectrpc==0.13.0",
+    "protoc-gen-py==0.7.0",
+    "protovalidate==2.1.0",
+]
+
+[tool.uv]
+# The root is just the environment; clients/python is the publishable package.
+package = false
+
+[tool.uv.workspace]
+members = ["clients/python"]
+
+[tool.uv.sources]
+durable = { workspace = true }
