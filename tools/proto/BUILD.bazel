@@ -19,7 +19,7 @@ alias(
 
 alias(
     name = "protoc-gen-connect-go",
-    actual = "@com_connectrpc_connect//cmd/protoc-gen-connect-go",
+    actual = "@com_connectrpc_connect_v2//cmd/protoc-gen-connect-go",
 )
 
 # Messages and service descriptors for Connect-ES v2.

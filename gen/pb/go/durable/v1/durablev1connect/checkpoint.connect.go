@@ -5,140 +5,136 @@
 package durablev1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/cornelmarck/durable-execution/gen/pb/go/durable/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// CheckpointServiceName is the fully-qualified name of the CheckpointService service.
 	CheckpointServiceName = "durable.v1.CheckpointService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// CheckpointServiceSetCheckpointProcedure is the fully-qualified name of the CheckpointService's
+	// CheckpointServiceSetCheckpointProcedure is the procedure name of the CheckpointService's
 	// SetCheckpoint RPC.
 	CheckpointServiceSetCheckpointProcedure = "/durable.v1.CheckpointService/SetCheckpoint"
-	// CheckpointServiceGetCheckpointProcedure is the fully-qualified name of the CheckpointService's
+	// CheckpointServiceGetCheckpointProcedure is the procedure name of the CheckpointService's
 	// GetCheckpoint RPC.
 	CheckpointServiceGetCheckpointProcedure = "/durable.v1.CheckpointService/GetCheckpoint"
+)
+
+var (
+	checkpointServiceSetCheckpointSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_checkpoint_proto.Services().ByName("CheckpointService").Methods().ByName("SetCheckpoint"),
+			Procedure:  CheckpointServiceSetCheckpointProcedure,
+		}
+	})
+	checkpointServiceGetCheckpointSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_durable_v1_checkpoint_proto.Services().ByName("CheckpointService").Methods().ByName("GetCheckpoint"),
+			Procedure:        CheckpointServiceGetCheckpointProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 )
 
 // CheckpointServiceClient is a client for the durable.v1.CheckpointService service.
 type CheckpointServiceClient interface {
 	// Creates or replaces the checkpoint for a step.
-	SetCheckpoint(context.Context, *connect.Request[v1.SetCheckpointRequest]) (*connect.Response[v1.SetCheckpointResponse], error)
+	SetCheckpoint(context.Context, *v1.SetCheckpointRequest) (*v1.SetCheckpointResponse, error)
 	// Fails with NOT_FOUND if the step has no checkpoint.
-	GetCheckpoint(context.Context, *connect.Request[v1.GetCheckpointRequest]) (*connect.Response[v1.GetCheckpointResponse], error)
+	GetCheckpoint(context.Context, *v1.GetCheckpointRequest) (*v1.GetCheckpointResponse, error)
 }
 
-// NewCheckpointServiceClient constructs a client for the durable.v1.CheckpointService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewCheckpointServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) CheckpointServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	checkpointServiceMethods := v1.File_durable_v1_checkpoint_proto.Services().ByName("CheckpointService").Methods()
-	return &checkpointServiceClient{
-		setCheckpoint: connect.NewClient[v1.SetCheckpointRequest, v1.SetCheckpointResponse](
-			httpClient,
-			baseURL+CheckpointServiceSetCheckpointProcedure,
-			connect.WithSchema(checkpointServiceMethods.ByName("SetCheckpoint")),
-			connect.WithClientOptions(opts...),
-		),
-		getCheckpoint: connect.NewClient[v1.GetCheckpointRequest, v1.GetCheckpointResponse](
-			httpClient,
-			baseURL+CheckpointServiceGetCheckpointProcedure,
-			connect.WithSchema(checkpointServiceMethods.ByName("GetCheckpoint")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// checkpointServiceClient implements CheckpointServiceClient.
-type checkpointServiceClient struct {
-	setCheckpoint *connect.Client[v1.SetCheckpointRequest, v1.SetCheckpointResponse]
-	getCheckpoint *connect.Client[v1.GetCheckpointRequest, v1.GetCheckpointResponse]
-}
-
-// SetCheckpoint calls durable.v1.CheckpointService.SetCheckpoint.
-func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, req *connect.Request[v1.SetCheckpointRequest]) (*connect.Response[v1.SetCheckpointResponse], error) {
-	return c.setCheckpoint.CallUnary(ctx, req)
-}
-
-// GetCheckpoint calls durable.v1.CheckpointService.GetCheckpoint.
-func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, req *connect.Request[v1.GetCheckpointRequest]) (*connect.Response[v1.GetCheckpointResponse], error) {
-	return c.getCheckpoint.CallUnary(ctx, req)
+// NewCheckpointServiceClient constructs a client for the durable.v1.CheckpointService service.
+// Multiple service clients may share a single connect.Client.
+func NewCheckpointServiceClient(client *connect.Client) CheckpointServiceClient {
+	return &checkpointServiceClient{client: client}
 }
 
 // CheckpointServiceHandler is an implementation of the durable.v1.CheckpointService service.
 type CheckpointServiceHandler interface {
 	// Creates or replaces the checkpoint for a step.
-	SetCheckpoint(context.Context, *connect.Request[v1.SetCheckpointRequest]) (*connect.Response[v1.SetCheckpointResponse], error)
+	SetCheckpoint(context.Context, *v1.SetCheckpointRequest) (*v1.SetCheckpointResponse, error)
 	// Fails with NOT_FOUND if the step has no checkpoint.
-	GetCheckpoint(context.Context, *connect.Request[v1.GetCheckpointRequest]) (*connect.Response[v1.GetCheckpointResponse], error)
+	GetCheckpoint(context.Context, *v1.GetCheckpointRequest) (*v1.GetCheckpointResponse, error)
 }
 
-// NewCheckpointServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewCheckpointServiceHandler(svc CheckpointServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	checkpointServiceMethods := v1.File_durable_v1_checkpoint_proto.Services().ByName("CheckpointService").Methods()
-	checkpointServiceSetCheckpointHandler := connect.NewUnaryHandler(
-		CheckpointServiceSetCheckpointProcedure,
-		svc.SetCheckpoint,
-		connect.WithSchema(checkpointServiceMethods.ByName("SetCheckpoint")),
-		connect.WithHandlerOptions(opts...),
+// RegisterCheckpointServiceHandler registers svc as the durable.v1.CheckpointService implementation
+// on server.
+func RegisterCheckpointServiceHandler(server *connect.Server, svc CheckpointServiceHandler) {
+	adapter := checkpointServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: checkpointServiceSetCheckpointSpec(), Handler: adapter.setCheckpoint},
+		connect.Method{Spec: checkpointServiceGetCheckpointSpec(), Handler: adapter.getCheckpoint},
 	)
-	checkpointServiceGetCheckpointHandler := connect.NewUnaryHandler(
-		CheckpointServiceGetCheckpointProcedure,
-		svc.GetCheckpoint,
-		connect.WithSchema(checkpointServiceMethods.ByName("GetCheckpoint")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/durable.v1.CheckpointService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case CheckpointServiceSetCheckpointProcedure:
-			checkpointServiceSetCheckpointHandler.ServeHTTP(w, r)
-		case CheckpointServiceGetCheckpointProcedure:
-			checkpointServiceGetCheckpointHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedCheckpointServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedCheckpointServiceHandler struct{}
 
-func (UnimplementedCheckpointServiceHandler) SetCheckpoint(context.Context, *connect.Request[v1.SetCheckpointRequest]) (*connect.Response[v1.SetCheckpointResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.CheckpointService.SetCheckpoint is not implemented"))
+func (UnimplementedCheckpointServiceHandler) SetCheckpoint(context.Context, *v1.SetCheckpointRequest) (*v1.SetCheckpointResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.CheckpointService.SetCheckpoint is not implemented")
 }
 
-func (UnimplementedCheckpointServiceHandler) GetCheckpoint(context.Context, *connect.Request[v1.GetCheckpointRequest]) (*connect.Response[v1.GetCheckpointResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.CheckpointService.GetCheckpoint is not implemented"))
+func (UnimplementedCheckpointServiceHandler) GetCheckpoint(context.Context, *v1.GetCheckpointRequest) (*v1.GetCheckpointResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.CheckpointService.GetCheckpoint is not implemented")
+}
+
+type checkpointServiceClient struct {
+	client *connect.Client
+}
+
+func (c *checkpointServiceClient) SetCheckpoint(ctx context.Context, req *v1.SetCheckpointRequest) (*v1.SetCheckpointResponse, error) {
+	var res v1.SetCheckpointResponse
+	if err := c.client.CallUnary(ctx, checkpointServiceSetCheckpointSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *checkpointServiceClient) GetCheckpoint(ctx context.Context, req *v1.GetCheckpointRequest) (*v1.GetCheckpointResponse, error) {
+	var res v1.GetCheckpointResponse
+	if err := c.client.CallUnary(ctx, checkpointServiceGetCheckpointSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type checkpointServiceHandler struct{ svc CheckpointServiceHandler }
+
+func (h checkpointServiceHandler) setCheckpoint(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetCheckpointRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetCheckpoint(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h checkpointServiceHandler) getCheckpoint(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetCheckpointRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetCheckpoint(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

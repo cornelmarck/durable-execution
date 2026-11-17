@@ -14,6 +14,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//gen/pb/go/durable/v1:durable",
-        "@com_connectrpc_connect//:connect",
+        "@com_connectrpc_connect_v2//:connect",
     ],
 )

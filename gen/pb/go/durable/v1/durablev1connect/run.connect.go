@@ -5,232 +5,251 @@
 package durablev1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/cornelmarck/durable-execution/gen/pb/go/durable/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// RunServiceName is the fully-qualified name of the RunService service.
 	RunServiceName = "durable.v1.RunService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// RunServiceListRunsProcedure is the fully-qualified name of the RunService's ListRuns RPC.
+	// RunServiceListRunsProcedure is the procedure name of the RunService's ListRuns RPC.
 	RunServiceListRunsProcedure = "/durable.v1.RunService/ListRuns"
-	// RunServiceCompleteRunProcedure is the fully-qualified name of the RunService's CompleteRun RPC.
+	// RunServiceCompleteRunProcedure is the procedure name of the RunService's CompleteRun RPC.
 	RunServiceCompleteRunProcedure = "/durable.v1.RunService/CompleteRun"
-	// RunServiceFailRunProcedure is the fully-qualified name of the RunService's FailRun RPC.
+	// RunServiceFailRunProcedure is the procedure name of the RunService's FailRun RPC.
 	RunServiceFailRunProcedure = "/durable.v1.RunService/FailRun"
-	// RunServiceScheduleRunProcedure is the fully-qualified name of the RunService's ScheduleRun RPC.
+	// RunServiceScheduleRunProcedure is the procedure name of the RunService's ScheduleRun RPC.
 	RunServiceScheduleRunProcedure = "/durable.v1.RunService/ScheduleRun"
-	// RunServiceWaitForEventProcedure is the fully-qualified name of the RunService's WaitForEvent RPC.
+	// RunServiceWaitForEventProcedure is the procedure name of the RunService's WaitForEvent RPC.
 	RunServiceWaitForEventProcedure = "/durable.v1.RunService/WaitForEvent"
+)
+
+var (
+	runServiceListRunsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods().ByName("ListRuns"),
+			Procedure:        RunServiceListRunsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	runServiceCompleteRunSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods().ByName("CompleteRun"),
+			Procedure:  RunServiceCompleteRunProcedure,
+		}
+	})
+	runServiceFailRunSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods().ByName("FailRun"),
+			Procedure:  RunServiceFailRunProcedure,
+		}
+	})
+	runServiceScheduleRunSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods().ByName("ScheduleRun"),
+			Procedure:  RunServiceScheduleRunProcedure,
+		}
+	})
+	runServiceWaitForEventSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods().ByName("WaitForEvent"),
+			Procedure:  RunServiceWaitForEventProcedure,
+		}
+	})
 )
 
 // RunServiceClient is a client for the durable.v1.RunService service.
 type RunServiceClient interface {
-	ListRuns(context.Context, *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error)
-	CompleteRun(context.Context, *connect.Request[v1.CompleteRunRequest]) (*connect.Response[v1.CompleteRunResponse], error)
+	ListRuns(context.Context, *v1.ListRunsRequest) (*v1.ListRunsResponse, error)
+	CompleteRun(context.Context, *v1.CompleteRunRequest) (*v1.CompleteRunResponse, error)
 	// Fails a run, scheduling a retry if the task has attempts left.
-	FailRun(context.Context, *connect.Request[v1.FailRunRequest]) (*connect.Response[v1.FailRunResponse], error)
+	FailRun(context.Context, *v1.FailRunRequest) (*v1.FailRunResponse, error)
 	// Makes a run claimable at a future time.
-	ScheduleRun(context.Context, *connect.Request[v1.ScheduleRunRequest]) (*connect.Response[v1.ScheduleRunResponse], error)
+	ScheduleRun(context.Context, *v1.ScheduleRunRequest) (*v1.ScheduleRunResponse, error)
 	// Suspends a run until a named event arrives or the timeout elapses. If the
 	// event already exists, returns RESOLVED with its payload. Otherwise the run
 	// is put to sleep (SLEEPING) and the worker should stop processing it; the
 	// server re-queues it when the event arrives. A later call for the same
 	// step returns TIMEOUT if the event never arrived.
-	WaitForEvent(context.Context, *connect.Request[v1.WaitForEventRequest]) (*connect.Response[v1.WaitForEventResponse], error)
+	WaitForEvent(context.Context, *v1.WaitForEventRequest) (*v1.WaitForEventResponse, error)
 }
 
-// NewRunServiceClient constructs a client for the durable.v1.RunService service. By default, it
-// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
-// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
-// connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewRunServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) RunServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	runServiceMethods := v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods()
-	return &runServiceClient{
-		listRuns: connect.NewClient[v1.ListRunsRequest, v1.ListRunsResponse](
-			httpClient,
-			baseURL+RunServiceListRunsProcedure,
-			connect.WithSchema(runServiceMethods.ByName("ListRuns")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-		completeRun: connect.NewClient[v1.CompleteRunRequest, v1.CompleteRunResponse](
-			httpClient,
-			baseURL+RunServiceCompleteRunProcedure,
-			connect.WithSchema(runServiceMethods.ByName("CompleteRun")),
-			connect.WithClientOptions(opts...),
-		),
-		failRun: connect.NewClient[v1.FailRunRequest, v1.FailRunResponse](
-			httpClient,
-			baseURL+RunServiceFailRunProcedure,
-			connect.WithSchema(runServiceMethods.ByName("FailRun")),
-			connect.WithClientOptions(opts...),
-		),
-		scheduleRun: connect.NewClient[v1.ScheduleRunRequest, v1.ScheduleRunResponse](
-			httpClient,
-			baseURL+RunServiceScheduleRunProcedure,
-			connect.WithSchema(runServiceMethods.ByName("ScheduleRun")),
-			connect.WithClientOptions(opts...),
-		),
-		waitForEvent: connect.NewClient[v1.WaitForEventRequest, v1.WaitForEventResponse](
-			httpClient,
-			baseURL+RunServiceWaitForEventProcedure,
-			connect.WithSchema(runServiceMethods.ByName("WaitForEvent")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// runServiceClient implements RunServiceClient.
-type runServiceClient struct {
-	listRuns     *connect.Client[v1.ListRunsRequest, v1.ListRunsResponse]
-	completeRun  *connect.Client[v1.CompleteRunRequest, v1.CompleteRunResponse]
-	failRun      *connect.Client[v1.FailRunRequest, v1.FailRunResponse]
-	scheduleRun  *connect.Client[v1.ScheduleRunRequest, v1.ScheduleRunResponse]
-	waitForEvent *connect.Client[v1.WaitForEventRequest, v1.WaitForEventResponse]
-}
-
-// ListRuns calls durable.v1.RunService.ListRuns.
-func (c *runServiceClient) ListRuns(ctx context.Context, req *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error) {
-	return c.listRuns.CallUnary(ctx, req)
-}
-
-// CompleteRun calls durable.v1.RunService.CompleteRun.
-func (c *runServiceClient) CompleteRun(ctx context.Context, req *connect.Request[v1.CompleteRunRequest]) (*connect.Response[v1.CompleteRunResponse], error) {
-	return c.completeRun.CallUnary(ctx, req)
-}
-
-// FailRun calls durable.v1.RunService.FailRun.
-func (c *runServiceClient) FailRun(ctx context.Context, req *connect.Request[v1.FailRunRequest]) (*connect.Response[v1.FailRunResponse], error) {
-	return c.failRun.CallUnary(ctx, req)
-}
-
-// ScheduleRun calls durable.v1.RunService.ScheduleRun.
-func (c *runServiceClient) ScheduleRun(ctx context.Context, req *connect.Request[v1.ScheduleRunRequest]) (*connect.Response[v1.ScheduleRunResponse], error) {
-	return c.scheduleRun.CallUnary(ctx, req)
-}
-
-// WaitForEvent calls durable.v1.RunService.WaitForEvent.
-func (c *runServiceClient) WaitForEvent(ctx context.Context, req *connect.Request[v1.WaitForEventRequest]) (*connect.Response[v1.WaitForEventResponse], error) {
-	return c.waitForEvent.CallUnary(ctx, req)
+// NewRunServiceClient constructs a client for the durable.v1.RunService service. Multiple service
+// clients may share a single connect.Client.
+func NewRunServiceClient(client *connect.Client) RunServiceClient {
+	return &runServiceClient{client: client}
 }
 
 // RunServiceHandler is an implementation of the durable.v1.RunService service.
 type RunServiceHandler interface {
-	ListRuns(context.Context, *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error)
-	CompleteRun(context.Context, *connect.Request[v1.CompleteRunRequest]) (*connect.Response[v1.CompleteRunResponse], error)
+	ListRuns(context.Context, *v1.ListRunsRequest) (*v1.ListRunsResponse, error)
+	CompleteRun(context.Context, *v1.CompleteRunRequest) (*v1.CompleteRunResponse, error)
 	// Fails a run, scheduling a retry if the task has attempts left.
-	FailRun(context.Context, *connect.Request[v1.FailRunRequest]) (*connect.Response[v1.FailRunResponse], error)
+	FailRun(context.Context, *v1.FailRunRequest) (*v1.FailRunResponse, error)
 	// Makes a run claimable at a future time.
-	ScheduleRun(context.Context, *connect.Request[v1.ScheduleRunRequest]) (*connect.Response[v1.ScheduleRunResponse], error)
+	ScheduleRun(context.Context, *v1.ScheduleRunRequest) (*v1.ScheduleRunResponse, error)
 	// Suspends a run until a named event arrives or the timeout elapses. If the
 	// event already exists, returns RESOLVED with its payload. Otherwise the run
 	// is put to sleep (SLEEPING) and the worker should stop processing it; the
 	// server re-queues it when the event arrives. A later call for the same
 	// step returns TIMEOUT if the event never arrived.
-	WaitForEvent(context.Context, *connect.Request[v1.WaitForEventRequest]) (*connect.Response[v1.WaitForEventResponse], error)
+	WaitForEvent(context.Context, *v1.WaitForEventRequest) (*v1.WaitForEventResponse, error)
 }
 
-// NewRunServiceHandler builds an HTTP handler from the service implementation. It returns the path
-// on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewRunServiceHandler(svc RunServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	runServiceMethods := v1.File_durable_v1_run_proto.Services().ByName("RunService").Methods()
-	runServiceListRunsHandler := connect.NewUnaryHandler(
-		RunServiceListRunsProcedure,
-		svc.ListRuns,
-		connect.WithSchema(runServiceMethods.ByName("ListRuns")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
+// RegisterRunServiceHandler registers svc as the durable.v1.RunService implementation on server.
+func RegisterRunServiceHandler(server *connect.Server, svc RunServiceHandler) {
+	adapter := runServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: runServiceListRunsSpec(), Handler: adapter.listRuns},
+		connect.Method{Spec: runServiceCompleteRunSpec(), Handler: adapter.completeRun},
+		connect.Method{Spec: runServiceFailRunSpec(), Handler: adapter.failRun},
+		connect.Method{Spec: runServiceScheduleRunSpec(), Handler: adapter.scheduleRun},
+		connect.Method{Spec: runServiceWaitForEventSpec(), Handler: adapter.waitForEvent},
 	)
-	runServiceCompleteRunHandler := connect.NewUnaryHandler(
-		RunServiceCompleteRunProcedure,
-		svc.CompleteRun,
-		connect.WithSchema(runServiceMethods.ByName("CompleteRun")),
-		connect.WithHandlerOptions(opts...),
-	)
-	runServiceFailRunHandler := connect.NewUnaryHandler(
-		RunServiceFailRunProcedure,
-		svc.FailRun,
-		connect.WithSchema(runServiceMethods.ByName("FailRun")),
-		connect.WithHandlerOptions(opts...),
-	)
-	runServiceScheduleRunHandler := connect.NewUnaryHandler(
-		RunServiceScheduleRunProcedure,
-		svc.ScheduleRun,
-		connect.WithSchema(runServiceMethods.ByName("ScheduleRun")),
-		connect.WithHandlerOptions(opts...),
-	)
-	runServiceWaitForEventHandler := connect.NewUnaryHandler(
-		RunServiceWaitForEventProcedure,
-		svc.WaitForEvent,
-		connect.WithSchema(runServiceMethods.ByName("WaitForEvent")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/durable.v1.RunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case RunServiceListRunsProcedure:
-			runServiceListRunsHandler.ServeHTTP(w, r)
-		case RunServiceCompleteRunProcedure:
-			runServiceCompleteRunHandler.ServeHTTP(w, r)
-		case RunServiceFailRunProcedure:
-			runServiceFailRunHandler.ServeHTTP(w, r)
-		case RunServiceScheduleRunProcedure:
-			runServiceScheduleRunHandler.ServeHTTP(w, r)
-		case RunServiceWaitForEventProcedure:
-			runServiceWaitForEventHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedRunServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRunServiceHandler struct{}
 
-func (UnimplementedRunServiceHandler) ListRuns(context.Context, *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.RunService.ListRuns is not implemented"))
+func (UnimplementedRunServiceHandler) ListRuns(context.Context, *v1.ListRunsRequest) (*v1.ListRunsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.RunService.ListRuns is not implemented")
 }
 
-func (UnimplementedRunServiceHandler) CompleteRun(context.Context, *connect.Request[v1.CompleteRunRequest]) (*connect.Response[v1.CompleteRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.RunService.CompleteRun is not implemented"))
+func (UnimplementedRunServiceHandler) CompleteRun(context.Context, *v1.CompleteRunRequest) (*v1.CompleteRunResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.RunService.CompleteRun is not implemented")
 }
 
-func (UnimplementedRunServiceHandler) FailRun(context.Context, *connect.Request[v1.FailRunRequest]) (*connect.Response[v1.FailRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.RunService.FailRun is not implemented"))
+func (UnimplementedRunServiceHandler) FailRun(context.Context, *v1.FailRunRequest) (*v1.FailRunResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.RunService.FailRun is not implemented")
 }
 
-func (UnimplementedRunServiceHandler) ScheduleRun(context.Context, *connect.Request[v1.ScheduleRunRequest]) (*connect.Response[v1.ScheduleRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.RunService.ScheduleRun is not implemented"))
+func (UnimplementedRunServiceHandler) ScheduleRun(context.Context, *v1.ScheduleRunRequest) (*v1.ScheduleRunResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.RunService.ScheduleRun is not implemented")
 }
 
-func (UnimplementedRunServiceHandler) WaitForEvent(context.Context, *connect.Request[v1.WaitForEventRequest]) (*connect.Response[v1.WaitForEventResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.RunService.WaitForEvent is not implemented"))
+func (UnimplementedRunServiceHandler) WaitForEvent(context.Context, *v1.WaitForEventRequest) (*v1.WaitForEventResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.RunService.WaitForEvent is not implemented")
+}
+
+type runServiceClient struct {
+	client *connect.Client
+}
+
+func (c *runServiceClient) ListRuns(ctx context.Context, req *v1.ListRunsRequest) (*v1.ListRunsResponse, error) {
+	var res v1.ListRunsResponse
+	if err := c.client.CallUnary(ctx, runServiceListRunsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *runServiceClient) CompleteRun(ctx context.Context, req *v1.CompleteRunRequest) (*v1.CompleteRunResponse, error) {
+	var res v1.CompleteRunResponse
+	if err := c.client.CallUnary(ctx, runServiceCompleteRunSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *runServiceClient) FailRun(ctx context.Context, req *v1.FailRunRequest) (*v1.FailRunResponse, error) {
+	var res v1.FailRunResponse
+	if err := c.client.CallUnary(ctx, runServiceFailRunSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *runServiceClient) ScheduleRun(ctx context.Context, req *v1.ScheduleRunRequest) (*v1.ScheduleRunResponse, error) {
+	var res v1.ScheduleRunResponse
+	if err := c.client.CallUnary(ctx, runServiceScheduleRunSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *runServiceClient) WaitForEvent(ctx context.Context, req *v1.WaitForEventRequest) (*v1.WaitForEventResponse, error) {
+	var res v1.WaitForEventResponse
+	if err := c.client.CallUnary(ctx, runServiceWaitForEventSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type runServiceHandler struct{ svc RunServiceHandler }
+
+func (h runServiceHandler) listRuns(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListRunsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListRuns(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h runServiceHandler) completeRun(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CompleteRunRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CompleteRun(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h runServiceHandler) failRun(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.FailRunRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.FailRun(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h runServiceHandler) scheduleRun(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ScheduleRunRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ScheduleRun(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h runServiceHandler) waitForEvent(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.WaitForEventRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.WaitForEvent(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

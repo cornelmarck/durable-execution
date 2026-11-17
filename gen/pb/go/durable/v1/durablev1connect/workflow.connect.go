@@ -5,140 +5,137 @@
 package durablev1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/cornelmarck/durable-execution/gen/pb/go/durable/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// WorkflowServiceName is the fully-qualified name of the WorkflowService service.
 	WorkflowServiceName = "durable.v1.WorkflowService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// WorkflowServiceCreateWorkflowRunProcedure is the fully-qualified name of the WorkflowService's
+	// WorkflowServiceCreateWorkflowRunProcedure is the procedure name of the WorkflowService's
 	// CreateWorkflowRun RPC.
 	WorkflowServiceCreateWorkflowRunProcedure = "/durable.v1.WorkflowService/CreateWorkflowRun"
-	// WorkflowServiceUpdateWorkflowRunProcedure is the fully-qualified name of the WorkflowService's
+	// WorkflowServiceUpdateWorkflowRunProcedure is the procedure name of the WorkflowService's
 	// UpdateWorkflowRun RPC.
 	WorkflowServiceUpdateWorkflowRunProcedure = "/durable.v1.WorkflowService/UpdateWorkflowRun"
+)
+
+var (
+	workflowServiceCreateWorkflowRunSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_workflow_proto.Services().ByName("WorkflowService").Methods().ByName("CreateWorkflowRun"),
+			Procedure:  WorkflowServiceCreateWorkflowRunProcedure,
+		}
+	})
+	workflowServiceUpdateWorkflowRunSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_durable_v1_workflow_proto.Services().ByName("WorkflowService").Methods().ByName("UpdateWorkflowRun"),
+			Procedure:  WorkflowServiceUpdateWorkflowRunProcedure,
+		}
+	})
 )
 
 // WorkflowServiceClient is a client for the durable.v1.WorkflowService service.
 type WorkflowServiceClient interface {
 	// Creates a workflow run in the pending state.
-	CreateWorkflowRun(context.Context, *connect.Request[v1.CreateWorkflowRunRequest]) (*connect.Response[v1.CreateWorkflowRunResponse], error)
+	CreateWorkflowRun(context.Context, *v1.CreateWorkflowRunRequest) (*v1.CreateWorkflowRunResponse, error)
 	// Updates a workflow run's status, result or timing. Unset fields are left
 	// unchanged.
-	UpdateWorkflowRun(context.Context, *connect.Request[v1.UpdateWorkflowRunRequest]) (*connect.Response[v1.UpdateWorkflowRunResponse], error)
+	UpdateWorkflowRun(context.Context, *v1.UpdateWorkflowRunRequest) (*v1.UpdateWorkflowRunResponse, error)
 }
 
-// NewWorkflowServiceClient constructs a client for the durable.v1.WorkflowService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) WorkflowServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	workflowServiceMethods := v1.File_durable_v1_workflow_proto.Services().ByName("WorkflowService").Methods()
-	return &workflowServiceClient{
-		createWorkflowRun: connect.NewClient[v1.CreateWorkflowRunRequest, v1.CreateWorkflowRunResponse](
-			httpClient,
-			baseURL+WorkflowServiceCreateWorkflowRunProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("CreateWorkflowRun")),
-			connect.WithClientOptions(opts...),
-		),
-		updateWorkflowRun: connect.NewClient[v1.UpdateWorkflowRunRequest, v1.UpdateWorkflowRunResponse](
-			httpClient,
-			baseURL+WorkflowServiceUpdateWorkflowRunProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("UpdateWorkflowRun")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// workflowServiceClient implements WorkflowServiceClient.
-type workflowServiceClient struct {
-	createWorkflowRun *connect.Client[v1.CreateWorkflowRunRequest, v1.CreateWorkflowRunResponse]
-	updateWorkflowRun *connect.Client[v1.UpdateWorkflowRunRequest, v1.UpdateWorkflowRunResponse]
-}
-
-// CreateWorkflowRun calls durable.v1.WorkflowService.CreateWorkflowRun.
-func (c *workflowServiceClient) CreateWorkflowRun(ctx context.Context, req *connect.Request[v1.CreateWorkflowRunRequest]) (*connect.Response[v1.CreateWorkflowRunResponse], error) {
-	return c.createWorkflowRun.CallUnary(ctx, req)
-}
-
-// UpdateWorkflowRun calls durable.v1.WorkflowService.UpdateWorkflowRun.
-func (c *workflowServiceClient) UpdateWorkflowRun(ctx context.Context, req *connect.Request[v1.UpdateWorkflowRunRequest]) (*connect.Response[v1.UpdateWorkflowRunResponse], error) {
-	return c.updateWorkflowRun.CallUnary(ctx, req)
+// NewWorkflowServiceClient constructs a client for the durable.v1.WorkflowService service. Multiple
+// service clients may share a single connect.Client.
+func NewWorkflowServiceClient(client *connect.Client) WorkflowServiceClient {
+	return &workflowServiceClient{client: client}
 }
 
 // WorkflowServiceHandler is an implementation of the durable.v1.WorkflowService service.
 type WorkflowServiceHandler interface {
 	// Creates a workflow run in the pending state.
-	CreateWorkflowRun(context.Context, *connect.Request[v1.CreateWorkflowRunRequest]) (*connect.Response[v1.CreateWorkflowRunResponse], error)
+	CreateWorkflowRun(context.Context, *v1.CreateWorkflowRunRequest) (*v1.CreateWorkflowRunResponse, error)
 	// Updates a workflow run's status, result or timing. Unset fields are left
 	// unchanged.
-	UpdateWorkflowRun(context.Context, *connect.Request[v1.UpdateWorkflowRunRequest]) (*connect.Response[v1.UpdateWorkflowRunResponse], error)
+	UpdateWorkflowRun(context.Context, *v1.UpdateWorkflowRunRequest) (*v1.UpdateWorkflowRunResponse, error)
 }
 
-// NewWorkflowServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	workflowServiceMethods := v1.File_durable_v1_workflow_proto.Services().ByName("WorkflowService").Methods()
-	workflowServiceCreateWorkflowRunHandler := connect.NewUnaryHandler(
-		WorkflowServiceCreateWorkflowRunProcedure,
-		svc.CreateWorkflowRun,
-		connect.WithSchema(workflowServiceMethods.ByName("CreateWorkflowRun")),
-		connect.WithHandlerOptions(opts...),
+// RegisterWorkflowServiceHandler registers svc as the durable.v1.WorkflowService implementation on
+// server.
+func RegisterWorkflowServiceHandler(server *connect.Server, svc WorkflowServiceHandler) {
+	adapter := workflowServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: workflowServiceCreateWorkflowRunSpec(), Handler: adapter.createWorkflowRun},
+		connect.Method{Spec: workflowServiceUpdateWorkflowRunSpec(), Handler: adapter.updateWorkflowRun},
 	)
-	workflowServiceUpdateWorkflowRunHandler := connect.NewUnaryHandler(
-		WorkflowServiceUpdateWorkflowRunProcedure,
-		svc.UpdateWorkflowRun,
-		connect.WithSchema(workflowServiceMethods.ByName("UpdateWorkflowRun")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/durable.v1.WorkflowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case WorkflowServiceCreateWorkflowRunProcedure:
-			workflowServiceCreateWorkflowRunHandler.ServeHTTP(w, r)
-		case WorkflowServiceUpdateWorkflowRunProcedure:
-			workflowServiceUpdateWorkflowRunHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedWorkflowServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWorkflowServiceHandler struct{}
 
-func (UnimplementedWorkflowServiceHandler) CreateWorkflowRun(context.Context, *connect.Request[v1.CreateWorkflowRunRequest]) (*connect.Response[v1.CreateWorkflowRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.WorkflowService.CreateWorkflowRun is not implemented"))
+func (UnimplementedWorkflowServiceHandler) CreateWorkflowRun(context.Context, *v1.CreateWorkflowRunRequest) (*v1.CreateWorkflowRunResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.WorkflowService.CreateWorkflowRun is not implemented")
 }
 
-func (UnimplementedWorkflowServiceHandler) UpdateWorkflowRun(context.Context, *connect.Request[v1.UpdateWorkflowRunRequest]) (*connect.Response[v1.UpdateWorkflowRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable.v1.WorkflowService.UpdateWorkflowRun is not implemented"))
+func (UnimplementedWorkflowServiceHandler) UpdateWorkflowRun(context.Context, *v1.UpdateWorkflowRunRequest) (*v1.UpdateWorkflowRunResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "durable.v1.WorkflowService.UpdateWorkflowRun is not implemented")
+}
+
+type workflowServiceClient struct {
+	client *connect.Client
+}
+
+func (c *workflowServiceClient) CreateWorkflowRun(ctx context.Context, req *v1.CreateWorkflowRunRequest) (*v1.CreateWorkflowRunResponse, error) {
+	var res v1.CreateWorkflowRunResponse
+	if err := c.client.CallUnary(ctx, workflowServiceCreateWorkflowRunSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *workflowServiceClient) UpdateWorkflowRun(ctx context.Context, req *v1.UpdateWorkflowRunRequest) (*v1.UpdateWorkflowRunResponse, error) {
+	var res v1.UpdateWorkflowRunResponse
+	if err := c.client.CallUnary(ctx, workflowServiceUpdateWorkflowRunSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type workflowServiceHandler struct{ svc WorkflowServiceHandler }
+
+func (h workflowServiceHandler) createWorkflowRun(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateWorkflowRunRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateWorkflowRun(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h workflowServiceHandler) updateWorkflowRun(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateWorkflowRunRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateWorkflowRun(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }
